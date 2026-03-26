@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>D.I.Y. Teamwork — Admin</title>
+<link rel="stylesheet" href="/css/styles.css">
+
+<!-- EXPORT LIBRARIES -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/libs/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- SortableJS -->
+<style>
+/* ── ADMIN LAYOUT ── */
+body { background:var(--bg-dark); display:flex; min-height:100vh; }
+
+/* SIDEBAR */
+.sidebar {
+  width:240px; flex-shrink:0;
+  background:var(--bg-card); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; height:100vh; position:sticky; top:0;
+}
+.sidebar-logo {
+  padding:24px 20px; border-bottom:1px solid var(--border);
+  font-family:'Outfit',sans-serif; font-size:22px; font-weight:800;
+}
+.sidebar-logo span { color:var(--primary); }
+.sidebar-nav { flex:1; padding:16px 12px; overflow-y:auto; }
+.nav-section { margin-bottom:24px; }
+.nav-section-title {
+  font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--text-muted); padding:0 8px; margin-bottom:8px;
+}
+.nav-item {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; border-radius:var(--radius);
+  color:var(--text-muted); cursor:pointer; font-size:14px; font-weight:500;
+  transition:var(--transition); margin-bottom:2px;
+}
+.nav-item:hover { background:var(--bg-hover); color:var(--text-secondary); }
+.nav-item.active { background:rgba(16,185,129,0.12); color:var(--primary); }
+.nav-item .icon { font-size:18px; width:22px; text-align:center; }
+.sidebar-footer { padding:16px; border-top:1px solid var(--border); }
+.sidebar-user {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; border-radius:var(--radius);
+}
+.user-avatar {
+  width:34px; height:34px; border-radius:10px;
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px;
+}
+.user-name   { font-size:13px; font-weight:600; }
+.user-role   { font-size:11px; color:var(--text-muted); }
+
+/* MAIN CONTENT */
+.main-content { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+.topbar {
+  padding:16px 28px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--bg-card); position:sticky; top:0; z-index:10;
+}
+.topbar-title { font-size:18px; font-weight:700; }
+.topbar-actions { display:flex; gap:8px; }
+.content-area { flex:1; overflow-y:auto; padding:28px; }
+
+/* ── PAGE SECTIONS ── */
+.page-section { display:none; }
+.page-section.active { display:block; }
+
+/* DASHBOARD */
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+.stat-card { position:relative; overflow:hidden; }
+.stat-card::before {
+  content:''; position:absolute; right:-16px; top:-16px;
+  width:80px; height:80px; border-radius:50%;
+  background:rgba(255,255,255,0.03);
+}
+.stat-icon { font-size:28px; margin-bottom:10px; }
+
+.quiz-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+.quiz-card {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:20px; transition:var(--transition);
+  cursor:pointer; position:relative; overflow:hidden;
+}
+.quiz-card:hover { border-color:var(--border-light); transform:translateY(-2px); box-shadow:var(--shadow); }
+.quiz-card-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px; }
+.quiz-type-badge { font-size:24px; }
+.quiz-card-title { font-size:15px; font-weight:700; margin-bottom:4px; }
+.quiz-card-meta  { font-size:12px; color:var(--text-muted); }
+.quiz-card-footer { display:flex; align-items:center; justify-content:space-between; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+.quiz-actions { display:flex; gap:6px; }
+
+/* QUESTION EDITOR */
+.question-list { display:flex; flex-direction:column; gap:8px; }
+.question-item {
+  display:flex; align-items:center; gap:12px;
+  padding:14px 16px; border-radius:var(--radius);
+  background:rgba(255,255,255,0.03); border:1px solid var(--border);
+  transition:var(--transition);
+}
+.question-item:hover { border-color:var(--border-light); background:rgba(255,255,255,0.05); }
+.q-num {
+  width:28px; height:28px; border-radius:8px; flex-shrink:0;
+  background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; color:var(--text-muted);
+}
+.q-type-icon { font-size:18px; flex-shrink:0; }
+.q-text { flex:1; font-size:14px; font-weight:500; }
+.q-meta { font-size:12px; color:var(--text-muted); white-space:nowrap; }
+
+/* Settings */
+.settings-section { margin-bottom:28px; }
+.settings-section h3 { font-size:16px; font-weight:700; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+.setting-row { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.setting-info .setting-label { font-size:14px; font-weight:500; }
+.setting-info .setting-desc  { font-size:12px; color:var(--text-muted); margin-top:2px; }
+.toggle-switch { position:relative; width:44px; height:24px; cursor:pointer; }
+.toggle-switch input { display:none; }
+.toggle-track {
+  width:100%; height:100%; border-radius:12px;
+  background:rgba(255,255,255,0.12); transition:background 0.3s;
+}
+.toggle-thumb {
+  position:absolute; left:2px; top:2px;
+  width:20px; height:20px; border-radius:50%;
+  background:#fff; transition:transform 0.3s; box-shadow:0 2px 4px rgba(0,0,0,0.3);
+}
+.toggle-switch input:checked ~ .toggle-track { background:var(--primary); }
+.toggle-switch input:checked ~ .toggle-thumb { transform:translateX(20px); }
+
+.btn-orange { background:#f97316; color:#fff; }
+.btn-orange:hover { background:#ea580c; }
+.btn-blue { background:var(--primary); color:#fff; }
+.btn-ghost { background:rgba(255,255,255,0.05); color:var(--text-secondary); }
+.btn-ghost:hover { background:rgba(255,255,255,0.1); }
+
+/* Reports */
+.session-list { display:flex; flex-direction:column; gap:8px; }
+.session-item {
+  display:flex; align-items:center; gap:14px;
+  padding:14px 18px; border-radius:var(--radius);
+  background:rgba(255,255,255,0.03); border:1px solid var(--border);
+  transition:var(--transition); cursor:pointer;
+}
+.session-item:hover { border-color:var(--border-light); background:rgba(255,255,255,0.05); }
+.session-pin {
+  font-family:'Outfit',sans-serif; font-size:20px; font-weight:800;
+  color:var(--primary); letter-spacing:2px; min-width:80px;
+}
+
+@media (max-width:1100px) { .stats-grid { grid-template-columns:1fr 1fr; } }
+@media (max-width:900px)  {
+  .sidebar { width:200px; }
+  .content-area { padding:20px; }
+}
+@media (max-width:700px)  {
+  body { flex-direction:column; }
+  .sidebar { width:100%; height:auto; position:static; flex-direction:row; border-right:none; border-bottom:1px solid var(--border); }
+  .sidebar-logo { display:none; }
+  .sidebar-nav  { display:flex; padding:8px; flex-direction:row; overflow-x:auto; }
+  .nav-section  { display:flex; gap:4px; margin:0; }
+  .nav-section-title { display:none; }
+  .nav-item { flex-direction:column; gap:2px; padding:8px 10px; font-size:10px; }
+  .sidebar-footer { display:none; }
+  .stats-grid { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">D.I.Y.<span>TW</span></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-section-title">หลัก</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('quizzes')">
+        <span class="icon">🎯</span> จัดการ Quiz
+      </div>
+      <div class="nav-item" onclick="goToHost()">
+        <span class="icon">🎤</span> Host Panel
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">รายงาน</div>
+      <div class="nav-item" onclick="showPage('reports')">
+        <span class="icon">📈</span> รายงาน
+      </div>
+      <div class="nav-item" onclick="showPage('history')">
+        <span class="icon">🕐</span> ประวัติ Session
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">ระบบ</div>
+      <div class="nav-item" onclick="showPage('settings')">
+        <span class="icon">⚙️</span> ตั้งค่า
+      </div>
+      <div class="nav-item" onclick="showPage('music')">
+        <span class="icon">🎵</span> เพลง
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-footer" style="display:flex; justify-content:space-between; align-items:center;">
+    <div class="sidebar-user" style="margin:0;">
+      <div class="user-avatar">👤</div>
+      <div><div class="user-name">Admin</div><div class="user-role">Administrator</div></div>
+    </div>
+    <button onclick="doLogout()" title="ออกจากระบบ" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:18px; padding:8px; border-radius:8px; transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#ef4444'" onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)'">
+      🚪
+    </button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main-content">
+  <div class="topbar">
+    <span class="topbar-title" id="topbar-title">📊 Dashboard</span>
+    <div class="topbar-actions" id="topbar-actions">
+      <button class="btn btn-primary" onclick="openCreateQuizModal()">+ สร้าง Quiz</button>
+    </div>
+  </div>
+
+  <div class="content-area">
+
+    <!-- ── DASHBOARD ── -->
+    <div id="page-dashboard" class="page-section active">
+      
+      <!-- Server IP Card (New Feature for Publishing) -->
+      <div style="background:linear-gradient(135deg, rgba(59,130,246,0.1), rgba(147,51,234,0.1)); padding:20px; border-radius:16px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; border: 1px solid rgba(59,130,246,0.2);">
+        <div>
+          <div style="color:var(--text-muted); margin-bottom:4px; font-size:14px">🌐 URL สำหรับผู้เล่นเข้าร่วม (แชร์ลิงก์นี้ให้ผู้เล่นใน Wi-Fi เดียวกัน)</div>
+          <div style="font-size:24px; font-weight:800; color:var(--primary)" id="dashboard-join-url">http://.../player</div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-primary" onclick="copyJoinUrl()"><span style="margin-right:6px">📋</span> คัดลอกลิงก์</button>
+          <button class="btn btn-danger" onclick="factoryReset()">⚠️ รีเซ็ตระบบกลับเป็น 0</button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card card"><div class="stat-icon">🎯</div><div class="stat-value" id="stat-quizzes">—</div><div class="stat-label">Quiz ทั้งหมด</div></div>
+        <div class="stat-card card"><div class="stat-icon">▶️</div><div class="stat-value" id="stat-sessions">—</div><div class="stat-label">Session ทั้งหมด</div></div>
+        <div class="stat-card card"><div class="stat-icon">👥</div><div class="stat-value" id="stat-participants">—</div><div class="stat-label">ผู้เข้าร่วมรวม</div></div>
+        <div class="stat-card card"><div class="stat-icon">🎯</div><div class="stat-value" id="stat-accuracy">—%</div><div class="stat-label">Accuracy Rate</div></div>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="flex-between mb-16">
+          <h3>Session ล่าสุด</h3>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('history')">ดูทั้งหมด →</button>
+        </div>
+        <div id="recent-sessions"></div>
+      </div>
+    </div>
+
+    <!-- ── QUIZZES ── -->
+    <div id="page-quizzes" class="page-section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <h2 style="font-size:22px;font-weight:800">Quiz ทั้งหมด</h2>
+        <button class="btn btn-primary" onclick="openCreateQuizModal()">+ สร้าง Quiz ใหม่</button>
+      </div>
+      <div class="quiz-grid" id="quiz-grid">
+        <div class="empty-state"><div class="empty-icon">🔄</div><div class="empty-title">กำลังโหลด...</div></div>
+      </div>
+    </div>
+
+    <!-- ── QUIZ EDITOR ── -->
+    <div id="page-quiz-editor" class="page-section">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+        <button class="btn btn-ghost btn-sm" onclick="showPage('quizzes')">← กลับ</button>
+        <h2 id="editor-quiz-title" style="font-size:20px;font-weight:800">แก้ไข Quiz</h2>
+        <span class="badge badge-green" id="editor-quiz-cat">General</span>
+      </div>
+      <div class="grid-2" style="gap:24px">
+        <div>
+          <div class="card mb-16">
+            <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">📝 ข้อมูล Quiz</h3>
+            <div class="form-group"><label class="form-label">ชื่อ Quiz</label><input class="form-input" id="eq-title" type="text" placeholder="ชื่อ Quiz..."></div>
+            <div class="form-group"><label class="form-label">คำอธิบาย</label><textarea class="form-textarea" id="eq-desc" style="height:80px" placeholder="คำอธิบายสั้นๆ..."></textarea></div>
+            <div class="form-group"><label class="form-label">หมวดหมู่</label>
+              <select class="form-select" id="eq-category">
+                <option>General</option><option>Science</option><option>Math</option>
+                <option>History</option><option>Language</option><option>Poll</option><option>Training</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="width:100%" onclick="saveQuizInfo()">💾 บันทึกข้อมูล</button>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <h3 style="font-size:15px;font-weight:700">❓ คำถาม (<span id="q-count">0</span> ข้อ)</h3>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary btn-sm" onclick="shuffleQuestions()" title="สลับตำแหน่งข้อศอก">🔀 สุ่มข้อ</button>
+                <button class="btn btn-primary btn-sm" onclick="openAddQuestionModal()">+ เพิ่มคำถาม</button>
+              </div>
+            </div>
+            <div id="question-list" class="question-list">
+              <div class="empty-state"><div class="empty-icon">❓</div><div class="empty-title">ยังไม่มีคำถาม</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REPORTS ── -->
+    <div id="page-reports" class="page-section">
+      <h2 style="font-size:22px;font-weight:800;margin-bottom:20px">📈 รายงาน</h2>
+      <div id="reports-content">
+        <div class="card">
+          <div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">เลือก Session เพื่อดูรายงาน</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── HISTORY ── -->
+    <div id="page-history" class="page-section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <h2 style="font-size:22px;font-weight:800">🕐 ประวัติ Session</h2>
+        <button class="btn btn-danger" onclick="clearSessionHistory()">🗑️ ล้างประวัติทั้งหมด</button>
+      </div>
+      <div class="session-list" id="session-history-list">
+        <div class="empty-state"><div class="empty-icon">🔄</div><div class="empty-title">กำลังโหลด...</div></div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div id="page-settings" class="page-section">
+      <h2 style="font-size:22px;font-weight:800;margin-bottom:20px">⚙️ ตั้งค่าระบบ</h2>
+      <div class="grid-2" style="gap:24px">
+        <div class="card settings-section">
+          <h3>🎨 ทั่วไป</h3>
+          <div class="form-group"><label class="form-label">ชื่อแอป</label><input class="form-input" id="s-app-name" type="text" placeholder="D.I.Y. Teamwork"></div>
+          <div class="form-group"><label class="form-label">สี Primary (hex)</label><input class="form-input" id="s-color" type="color" style="height:42px;padding:4px 8px"></div>
+          <div class="form-group"><label class="form-label">ฟอนต์ของระบบ (Font Family)</label><input class="form-input" id="s-font" type="text" placeholder="เช่น 'Outfit', 'Sarabun', sans-serif"></div>
+          <div class="form-group"><label class="form-label">ขนาดฟอนต์ (px)</label><input class="form-input" id="s-font-size" type="number" placeholder="16"></div>
+          <div class="form-group"><label class="form-label">เวลาตอบค่าเริ่มต้น (วินาที)</label><input class="form-input" id="s-time" type="number" min="5" max="300" placeholder="30"></div>
+          <div class="form-group"><label class="form-label">Admin Password</label><input class="form-input" id="s-admin-pass" type="password" placeholder="••••••••"></div>
+        </div>
+        <div class="card settings-section">
+          <h3>🔧 ฟีเจอร์</h3>
+          <div class="setting-row">
+            <div class="setting-info"><div class="setting-label">Leaderboard</div><div class="setting-desc">แสดงกระดานคะแนน</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="s-leaderboard" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><div class="setting-label">เปิดเพลงอัตโนมัติ</div><div class="setting-desc">เล่นเพลงเมื่อเริ่ม session</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="s-music"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="form-group" style="margin-top:16px;">
+            <label class="form-label">ระดับเสียงเพลง (0.0 - 1.0)</label>
+            <input class="form-input" id="s-music-vol" type="number" step="0.1" min="0" max="1" placeholder="0.5">
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-lg mt-24" onclick="saveAllSettings()">💾 บันทึกการตั้งค่า</button>
+    </div>
+
+    <!-- ── MUSIC ── -->
+    <div id="page-music" class="page-section">
+      <h2 style="font-size:22px;font-weight:800;margin-bottom:20px">🎵 จัดการเพลง</h2>
+      <div class="card mb-16">
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">อัปโหลดไฟล์เพลงจากเครื่อง (MP3/WAV) หรือใช้ลิงก์จาก Google Drive</p>
+        <div style="display:flex; gap:10px; margin-bottom:12px;">
+          <input type="file" id="music-upload-input" accept=".mp3,.wav,.ogg,.m4a" style="display:none" onchange="uploadLocalMusic()">
+          <button class="btn btn-primary" onclick="document.getElementById('music-upload-input').click()">📤 อัปโหลดจากเครื่อง</button>
+          <button class="btn btn-secondary" onclick="loadMusicFiles()">🔄 รีเฟรชรายการ</button>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; background:rgba(255,255,255,0.03); padding:10px; border-radius:var(--radius); border:1px solid var(--border)">
+          <span style="font-size:20px">🔗</span>
+          <input type="text" id="music-drive-url" class="form-input" placeholder="วางลิงก์ Google Drive, หรือ URL เพลง (.mp3) จากเว็บภายนอก..." style="flex:1">
+          <button class="btn btn-primary" onclick="addDriveMusic()">ใช้ลิงก์นี้</button>
+        </div>
+      </div>
+      <div id="music-list" class="quiz-grid"></div>
+    </div>
+
+  </div><!-- /content-area -->
+</div><!-- /main-content -->
+
+<!-- ── CREATE QUIZ MODAL ── -->
+<div class="modal-backdrop" id="modal-create-quiz">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <span class="modal-title">✨ สร้าง Quiz ใหม่</span>
+      <button class="modal-close" onclick="closeModal('modal-create-quiz')">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">ชื่อ Quiz *</label><input class="form-input" id="cq-title" type="text" placeholder="เช่น General Knowledge Q1 2026"></div>
+    <div class="form-group"><label class="form-label">คำอธิบาย</label><textarea class="form-textarea" id="cq-desc" style="height:80px" placeholder="อธิบายสั้นๆ..."></textarea></div>
+    <div class="form-group"><label class="form-label">หมวดหมู่</label>
+      <select class="form-select" id="cq-category">
+        <option>General</option><option>Science</option><option>Math</option>
+        <option>History</option><option>Language</option><option>Poll</option><option>Training</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('modal-create-quiz')">ยกเลิก</button>
+      <button class="btn btn-primary" style="flex:2" onclick="createNewQuiz()">✨ สร้าง Quiz</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD QUESTION MODAL ── -->
+<div class="modal-backdrop" id="modal-add-question">
+  <div class="modal-panel" style="max-width:600px">
+    <div class="modal-header">
+      <span class="modal-title">➕ เพิ่มคำถาม</span>
+      <button class="modal-close" onclick="closeModal('modal-add-question')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">ประเภทคำถาม</label>
+      <select class="form-select" id="q-type" onchange="renderQuestionForm()">
+        <option value="multiple_choice">🔘 Multiple Choice</option>
+        <option value="true_false">✅ True / False</option>
+        <option value="checkbox">☑️ Checkbox (หลายคำตอบ)</option>
+        <option value="short_answer">✏️ Short Answer</option>
+        <option value="poll">📊 Poll</option>
+        <option value="word_cloud">☁️ Word Cloud</option>
+        <option value="rating">⭐ Rating / Scale</option>
+        <option value="open_text">💬 Open Text</option>
+        <option value="q_and_a">❓ Q&A</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">คำถาม *</label>
+      <textarea class="form-textarea" id="q-text" style="height:80px" placeholder="พิมพ์คำถามที่นี่..."></textarea>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label class="form-label">เวลา (วินาที)</label><input class="form-input" id="q-time" type="number" value="60" min="5" max="300"></div>
+      <div class="form-group"><label class="form-label">คะแนน</label><input class="form-input" id="q-points" type="number" value="5" min="0" max="1000"></div>
+    </div>
+    <div id="q-options-area"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('modal-add-question')">ยกเลิก</button>
+      <button class="btn btn-primary" style="flex:2" onclick="saveQuestion()">💾 บันทึกคำถาม</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/scripts.js"></script>
+<script>
+const APP_URL = '';
+let currentQuizId = null;
+let currentQuestions = [];
+let editingQuestionId = null;
+let optionCount = 4; // default choices
+
+// ── NAVIGATION ──
+function showPage(page) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[onclick="showPage('${page}')"]`)?.classList.add('active');
+
+  const titles = { dashboard:'📊 Dashboard', quizzes:'🎯 จัดการ Quiz', reports:'📈 รายงาน', history:'🕐 ประวัติ', settings:'⚙️ ตั้งค่า', music:'🎵 เพลง', 'quiz-editor':'✏️ แก้ไข Quiz' };
+  document.getElementById('topbar-title').textContent = titles[page] || page;
+
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'quizzes')   loadQuizList();
+  if (page === 'history')   loadHistory();
+  if (page === 'settings')  loadSettings();
+}
+function goToHost() { window.open(`/host`, '_blank'); }
+
+// ── DASHBOARD ──
+function loadDashboard() {
+  fetch('/api/server-info').then(r=>r.json()).then(res => {
+    if(res.success) {
+      const url = `http://${res.ip}:${res.port}/player`;
+      document.getElementById('dashboard-join-url').innerText = url;
+      window.currentJoinUrl = url;
+    }
+  }).catch(()=>{});
+
+  gasRun('getDashboardData', null, res => {
+    if (!res.success) return;
+    const d = res.data;
+    document.getElementById('stat-quizzes').textContent     = d.totalQuizzes;
+    document.getElementById('stat-sessions').textContent    = d.totalSessions;
+    document.getElementById('stat-participants').textContent= d.totalParticipants;
+    document.getElementById('stat-accuracy').textContent    = d.accuracyRate + '%';
+
+    const container = document.getElementById('recent-sessions');
+    if (!d.recentSessions.length) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">ยังไม่มี session</div></div>';
+      return;
+    }
+    container.innerHTML = d.recentSessions.map(s => `
+      <div class="session-item" onclick="viewReport('${s.id}')">
+        <div class="session-pin">${s.pin}</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${s.quiz_id || 'Unknown Quiz'}</div>
+          <div class="text-sm text-muted">${new Date(s.started_at).toLocaleDateString('th-TH')}</div>
+        </div>
+        <span class="badge ${s.status === 'active' ? 'badge-green' : s.status === 'ended' ? 'badge-gray' : 'badge-yellow'}">${s.status}</span>
+      </div>`).join('');
+  });
+}
+
+function copyJoinUrl() {
+  if (!window.currentJoinUrl) return;
+  navigator.clipboard.writeText(window.currentJoinUrl).then(() => {
+    showToast('คัดลอกลิงก์เรียบร้อยแล้ว!', 'success');
+  });
+}
+
+function factoryReset() {
+  confirmDialog('คุณต้องการลบข้อมูลเกมและผู้เล่นทิ้งทั้งหมดเพื่อเริ่มที่ 0 หรือไม่? (คำถามและตั้งค่าจะไม่หายไป)', () => {
+    fetch('/api/dashboard/reset', { method: 'POST' }).then(r=>r.json()).then(res => {
+      if(res.success) {
+        showToast('ข้อมูลทุกอย่างถูกรีเซ็ตเป็น 0 แล้ว!', 'success');
+        loadDashboard();
+      } else {
+        showToast('เกิดข้อผิดพลาดในการรีเซ็ต: ' + res.error, 'error');
+      }
+    }).catch(err => console.error(err));
+  });
+}
+
+// ── QUIZ LIST ──
+function loadQuizList() {
+  gasRun('getQuizList', null, res => {
+    if (!res.success) { showToast('โหลด quiz ล้มเหลว', 'error'); return; }
+    const grid = document.getElementById('quiz-grid');
+    if (!res.data.length) {
+      grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">ยังไม่มี Quiz</div><div class="empty-desc">กดปุ่ม "+ สร้าง Quiz ใหม่" เพื่อเริ่มต้น</div></div>';
+      return;
+    }
+    const catIcons = { General:'🌐', Science:'🔬', Math:'🔢', History:'📜', Language:'💬', Poll:'📊', Training:'📚' };
+    grid.innerHTML = res.data.map(q => `
+      <div class="quiz-card" onclick="openQuizEditor('${q.id}')">
+        <div class="quiz-card-header">
+          <span class="quiz-type-badge">${catIcons[q.category] || '🎯'}</span>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();openQuizEditor('${q.id}')" title="แก้ไข">✏️ Edit</button>
+            <button class="btn btn-sm btn-orange" onclick="event.stopPropagation();copyQuiz('${q.id}')" title="คัดลอกสำเนา">📑 Copy</button>
+            <button class="btn btn-sm btn-blue" onclick="event.stopPropagation();startQuickSession('${q.id}')">▶ Host</button>
+            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteQuiz('${q.id}')">🗑 Delete</button>
+          </div>
+        </div>
+        <div class="quiz-card-title">${q.title}</div>
+        <div class="quiz-card-meta">${q.description || 'ไม่มีคำอธิบาย'}</div>
+        <div class="quiz-card-footer">
+          <span class="badge badge-blue">${q.questionCount} คำถาม</span>
+          <span class="badge badge-gray">${q.category}</span>
+        </div>
+      </div>`).join('');
+  });
+}
+
+function openCreateQuizModal() { openModal('modal-create-quiz'); }
+function createNewQuiz() {
+  const title = document.getElementById('cq-title').value.trim();
+  if (!title) { showToast('กรุณาใส่ชื่อ Quiz', 'error'); return; }
+  showLoading('กำลังสร้าง Quiz...');
+  gasRun('createQuiz', [{
+    title,
+    description: document.getElementById('cq-desc').value,
+    category:    document.getElementById('cq-category').value,
+    host_id:     'admin'
+  }], res => {
+    hideLoading();
+    if (res.success) {
+      closeModal('modal-create-quiz');
+      showToast('สร้าง Quiz สำเร็จ!', 'success');
+      openQuizEditor(res.id);
+    } else showToast(res.error, 'error');
+  });
+}
+
+// ── QUIZ EDITOR ──
+function openQuizEditor(quizId) {
+  currentQuizId = quizId;
+  showLoading('โหลดข้อมูล Quiz...');
+  gasRun('getQuizDetail', [quizId], res => {
+    hideLoading();
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    const q = res.data;
+    document.getElementById('editor-quiz-title').textContent = q.title;
+    document.getElementById('editor-quiz-cat').textContent   = q.category || 'General';
+    document.getElementById('eq-title').value      = q.title;
+    document.getElementById('eq-desc').value       = q.description;
+    document.getElementById('eq-category').value   = q.category || 'General';
+    currentQuestions = q.questions || [];
+    renderQuestionList();
+    showPage('quiz-editor');
+  });
+}
+
+function renderQuestionList() {
+  const list = document.getElementById('question-list');
+  document.getElementById('q-count').textContent = currentQuestions.length;
+  const typeLabels = {
+    multiple_choice:'🔘 MC', true_false:'✅ T/F', checkbox:'☑️ CB',
+    short_answer:'✏️ SA', poll:'📊 Poll', word_cloud:'☁️ WC',
+    rating:'⭐ Rating', open_text:'💬 OT', q_and_a:'❓ Q&A'
+  };
+  if (!currentQuestions.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">❓</div><div class="empty-title">ยังไม่มีคำถาม</div><div class="empty-desc">กดปุ่ม "+ เพิ่มคำถาม"</div></div>';
+    return;
+  }
+  list.innerHTML = currentQuestions.map((q, i) => `
+    <div class="question-item">
+      <span class="q-num">${i + 1}</span>
+      <span class="q-type-icon">${typeLabels[q.type] || '❓'}</span>
+      <span class="q-text">${q.text || 'ไม่มีข้อความ'}</span>
+      <span class="q-meta">${q.time_limit || 30}s • ${q.points || 0}pt</span>
+      <button class="btn btn-ghost btn-sm" onclick="editQuestion('${q.id}')">✏️</button>
+      <button class="btn btn-ghost btn-sm" onclick="deleteQuestion('${q.id}')">🗑</button>
+    </div>`).join('');
+}
+
+function saveQuizInfo() {
+  if (!currentQuizId) return;
+  gasRun('updateQuiz', [currentQuizId, {
+    title:       document.getElementById('eq-title').value,
+    description: document.getElementById('eq-desc').value,
+    category:    document.getElementById('eq-category').value
+  }], res => {
+    if (res.success) showToast('บันทึกสำเร็จ!', 'success');
+    else showToast(res.error, 'error');
+  });
+}
+
+// ── QUESTION FORM ──
+function openAddQuestionModal() {
+  editingQuestionId = null;
+  document.getElementById('q-text').value = '';
+  document.getElementById('q-time').value = '60';
+  document.getElementById('q-points').value = '5';
+  document.getElementById('q-type').value = 'multiple_choice';
+  renderQuestionForm();
+  openModal('modal-add-question');
+}
+
+function editQuestion(qId) {
+  const q = currentQuestions.find(x => x.id === qId);
+  if (!q) { showToast('ไม่พบคำถาม', 'error'); return; }
+  editingQuestionId = q.id;
+  document.getElementById('q-text').value   = q.text || '';
+  document.getElementById('q-time').value   = q.time_limit || 60;
+  document.getElementById('q-points').value = q.points || 0;
+  document.getElementById('q-type').value   = q.type || 'multiple_choice';
+  renderQuestionForm();
+
+  const type = q.type;
+  const opts = q.options || [];
+
+  if (type === 'multiple_choice' || type === 'poll') {
+    opts.forEach((o, i) => {
+      const el = document.getElementById(`opt-${i}`);
+      if (el) el.value = o.text || '';
+      if (type === 'multiple_choice' && o.is_correct) {
+        const r = document.querySelector(`input[name="correct"][value="${i}"]`);
+        if (r) r.checked = true;
+      }
+    });
+  } else if (type === 'true_false') {
+    const correct = opts.find(o => o.is_correct) || { text: 'True' };
+    const r = document.querySelector(`input[name="tf-correct"][value="${correct.text}"]`);
+    if (r) r.checked = true;
+  } else if (type === 'checkbox') {
+    opts.forEach((o, i) => {
+      const el = document.getElementById(`opt-${i}`);
+      if (el) el.value = o.text || '';
+      const c = document.getElementById(`chk-${i}`);
+      if (c) c.checked = !!o.is_correct;
+    });
+  } else if (type === 'rating') {
+    const nums = opts.map(o => parseInt(o.text, 10)).filter(n => !Number.isNaN(n));
+    if (nums.length) {
+      const min = Math.min(...nums);
+      const max = Math.max(...nums);
+      const minEl = document.getElementById('rating-min');
+      const maxEl = document.getElementById('rating-max');
+      if (minEl) minEl.value = String(min);
+      if (maxEl) maxEl.value = String(max);
+    }
+  }
+
+  openModal('modal-add-question');
+}
+
+function renderQuestionForm() {
+  const type = document.getElementById('q-type').value;
+  const area = document.getElementById('q-options-area');
+  const hasScore = ['multiple_choice','true_false','checkbox'].includes(type);
+
+  if (type === 'multiple_choice' || type === 'poll') {
+    const isScored = type === 'multiple_choice';
+    let html = `<label class="form-label">ตัวเลือก (${isScored ? 'ติ๊กถูกต้อง' : 'ตัวเลือก Poll'})</label>`;
+    html += `<div id="choices-list">`;
+    for (let i = 0; i < 4; i++) {
+      html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        ${isScored ? `<input type="radio" name="correct" value="${i}" style="cursor:pointer">` : ''}
+        <input class="form-input" id="opt-${i}" placeholder="ตัวเลือก ${i+1}..." style="flex:1">
+      </div>`;
+    }
+    html += `</div>`;
+    if (!isScored) document.getElementById('q-points').value = '0';
+    area.innerHTML = html;
+  } else if (type === 'true_false') {
+    area.innerHTML = `
+      <label class="form-label">คำตอบที่ถูก</label>
+      <div style="display:flex;gap:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="radio" name="tf-correct" value="True" checked> <span style="font-weight:600">True ✅</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="radio" name="tf-correct" value="False"> <span style="font-weight:600">False ❌</span>
+        </label>
+      </div>`;
+  } else if (type === 'checkbox') {
+    let html = `<label class="form-label">ตัวเลือก (ติ๊กทุกข้อที่ถูก)</label><div id="choices-list">`;
+    for (let i = 0; i < 4; i++) {
+      html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input type="checkbox" id="chk-${i}" style="cursor:pointer">
+        <input class="form-input" id="opt-${i}" placeholder="ตัวเลือก ${i+1}..." style="flex:1">
+      </div>`;
+    }
+    html += `</div>`;
+    area.innerHTML = html;
+  } else if (type === 'rating') {
+    area.innerHTML = `
+      <label class="form-label">ช่วงคะแนน</label>
+      <div style="display:flex;gap:12px">
+        <div><label class="form-label" style="font-size:11px">Min</label><input class="form-input" id="rating-min" type="number" value="1" min="1" style="width:80px"></div>
+        <div><label class="form-label" style="font-size:11px">Max</label><input class="form-input" id="rating-max" type="number" value="5" max="10" style="width:80px"></div>
+      </div>`;
+    document.getElementById('q-points').value = '0';
+  } else {
+    area.innerHTML = '';
+    if (['word_cloud','open_text','q_and_a','short_answer'].includes(type)) {
+      document.getElementById('q-points').value = type === 'short_answer' ? '5' : '0';
+    }
+  }
+}
+
+function saveQuestion() {
+  const type  = document.getElementById('q-type').value;
+  const text  = document.getElementById('q-text').value.trim();
+  if (!text) { showToast('กรุณากรอกคำถาม', 'error'); return; }
+  if (!currentQuizId) { showToast('ไม่พบ Quiz', 'error'); return; }
+
+  let options = [];
+
+  if (type === 'multiple_choice' || type === 'poll') {
+    const isScored = type === 'multiple_choice';
+    const correctIdx = isScored ? parseInt(document.querySelector('input[name="correct"]:checked')?.value ?? -1) : -1;
+    for (let i = 0; i < 4; i++) {
+      const val = document.getElementById(`opt-${i}`)?.value?.trim();
+      if (val) options.push({ text: val, is_correct: isScored && i === correctIdx });
+    }
+    if (options.length < 2) { showToast('ต้องมีอย่างน้อย 2 ตัวเลือก', 'error'); return; }
+    if (isScored && correctIdx < 0) { showToast('กรุณาเลือกคำตอบที่ถูกต้อง', 'error'); return; }
+  } else if (type === 'true_false') {
+    const correct = document.querySelector('input[name="tf-correct"]:checked')?.value || 'True';
+    options = [{ text:'True', is_correct: correct === 'True' }, { text:'False', is_correct: correct === 'False' }];
+  } else if (type === 'checkbox') {
+    for (let i = 0; i < 4; i++) {
+      const val = document.getElementById(`opt-${i}`)?.value?.trim();
+      const chk = document.getElementById(`chk-${i}`)?.checked;
+      if (val) options.push({ text: val, is_correct: !!chk });
+    }
+    if (options.length < 2) { showToast('ต้องมีอย่างน้อย 2 ตัวเลือก', 'error'); return; }
+  } else if (type === 'rating') {
+    const min = parseInt(document.getElementById('rating-min')?.value) || 1;
+    const max = parseInt(document.getElementById('rating-max')?.value) || 5;
+    for (let i = min; i <= max; i++) options.push({ text: String(i) });
+  }
+
+  const existingIndex = editingQuestionId
+    ? currentQuestions.findIndex(x => x.id === editingQuestionId)
+    : -1;
+  const qData = {
+    id:          editingQuestionId,
+    quiz_id:     currentQuizId,
+    type,
+    text,
+    time_limit:  parseInt(document.getElementById('q-time').value) || 60,
+    points:      parseInt(document.getElementById('q-points').value) || 0,
+    order_num:   existingIndex >= 0 ? existingIndex + 1 : currentQuestions.length + 1,
+    options
+  };
+
+  showLoading('บันทึกคำถาม...');
+  gasRun('saveQuestion', [qData], res => {
+    hideLoading();
+    if (res.success) {
+      closeModal('modal-add-question');
+      showToast('บันทึกคำถามสำเร็จ!', 'success');
+      openQuizEditor(currentQuizId); // reload
+    } else showToast(res.error, 'error');
+  });
+}
+
+function deleteQuestion(qId) {
+  confirmDialog('ลบคำถามนี้?', () => {
+    gasRun('deleteQuestion', [qId], res => {
+      if (res.success) { showToast('ลบสำเร็จ', 'success'); openQuizEditor(currentQuizId); }
+      else showToast(res.error, 'error');
+    });
+  });
+}
+
+// ── QUIZ ACTIONS ──
+function deleteQuiz(qId) {
+  confirmDialog('ลบ Quiz นี้ทั้งหมด?', () => {
+    gasRun('deleteQuiz', [qId], res => {
+      if (res.success) { showToast('ลบสำเร็จ', 'success'); loadQuizList(); }
+      else showToast(res.error, 'error');
+    });
+  });
+}
+function copyQuiz(qId) {
+  confirmDialog('ต้องการคัดลอกสำเนา Quiz นี้หรือไม่?', () => {
+    showLoading('กำลังคัดลอก...');
+    gasRun('duplicateQuiz', [{ quizId: qId }], res => {
+      hideLoading();
+      if (res.success) {
+        showToast('คัดลอกสำเนาสำเร็จ!', 'success');
+        loadQuizList();
+      } else {
+        showToast(res.error, 'error');
+      }
+    });
+  });
+}
+function startQuickSession(quizId) {
+  window.open(`/host?quizId=${quizId}`, '_blank');
+}
+
+// ── HISTORY ──
+function loadHistory() {
+  gasRun('getSessionHistory', ['admin'], res => {
+    const list = document.getElementById('session-history-list');
+    if (!res.success || !res.data.length) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">ยังไม่มีประวัติ</div></div>';
+      return;
+    }
+    list.innerHTML = res.data.map(s => `
+      <div class="session-item" onclick="viewReport('${s.id}')">
+        <div class="session-pin">${s.pin}</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${s.quizTitle}</div>
+          <div class="text-sm text-muted">${s.started_at ? new Date(s.started_at).toLocaleString('th-TH') : '—'}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="badge ${s.status==='active'?'badge-green':s.status==='ended'?'badge-gray':'badge-yellow'}">${s.status}</span>
+          <button class="btn btn-sm btn-ghost" style="padding:4px 8px; color:#ef4444" onclick="event.stopPropagation();deleteSession('${s.id}')" title="ลบ Session นี้">🗑</button>
+        </div>
+      </div>`).join('');
+  });
+}
+
+function clearSessionHistory() {
+  confirmDialog('ล้างประวัติ Session ทั้งหมดหรือไม่? (เฉพาะ Session ที่จบไปแล้ว)', () => {
+    fetch('/api/sessions/history', { method: 'DELETE' })
+      .then(r => r.json())
+      .then(res => {
+        if (res.success) {
+          showToast('ล้างประวัติสำเร็จ', 'success');
+          loadHistory();
+        } else {
+          showToast(res.error, 'error');
+        }
+      }).catch(err => showToast(err.message, 'error'));
+  });
+}
+
+function deleteSession(sid) {
+  confirmDialog(`ต้องการลบประวัติการเล่นครั้งนี้ (SSID: ${sid}) หรือไม่?`, () => {
+    gasRun('deleteSession', [{ sessionId: sid }], res => {
+      if (res.success) {
+        showToast('ลบสำเร็จ', 'success');
+        loadHistory();
+      } else {
+        showToast(res.error, 'error');
+      }
+    });
+  });
+}
+
+let reportsChartInst = null;
+let reportsBarInst = null;
+function viewReport(sessionId) {
+  showLoading('โหลดรายงาน...');
+  gasRun('getReports', [sessionId], res => {
+    hideLoading();
+    showPage('reports');
+    const container = document.getElementById('reports-content');
+    if (!res.success) { container.innerHTML = `<div class="card"><p class="text-muted">${res.error}</p></div>`; return; }
+    const d = res.data;
+    
+    // Animate classes
+    const ani = 'style="animation: modalIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;"';
+    
+    window.currentReportData = d; // Cache globally for the export
+    
+    container.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+        <h2 style="margin:0;font-size:20px;font-weight:700">📊 ผลรายงาน: ${d.session && d.session.quizTitle ? d.session.quizTitle : 'Session'}</h2>
+        <div class="dropdown" style="position:relative">
+          <button class="btn btn-secondary" onclick="document.getElementById('exportMenu').style.display = document.getElementById('exportMenu').style.display === 'none' ? 'block' : 'none'; event.stopPropagation();">
+            <span style="margin-right:6px">📥</span> Export ▼
+          </button>
+          <div id="exportMenu" style="display:none; position:absolute; right:0; top:45px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:8px; z-index:100; min-width:180px; box-shadow:var(--shadow)">
+            <button class="btn btn-ghost" style="width:100%; text-align:left; margin-bottom:4px" onclick="exportReport('excel')">📊 Excel (.xlsx)</button>
+            <button class="btn btn-ghost" style="width:100%; text-align:left; margin-bottom:4px" onclick="exportReport('pdf')">📄 PDF (.pdf)</button>
+            <button class="btn btn-ghost" style="width:100%; text-align:left" onclick="exportReport('ppt')">📽️ PowerPoint (.pptx)</button>
+          </div>
+        </div>
+      </div>
+      <div class="stats-grid mb-16">
+        <div class="stat-card card" ${ani} style="animation-delay: 0.1s"><div class="stat-icon">👥</div><div class="stat-value">${d.participantCount}</div><div class="stat-label">ผู้เข้าร่วม</div></div>
+        <div class="stat-card card" ${ani} style="animation-delay: 0.2s"><div class="stat-icon">📝</div><div class="stat-value">${d.questionSummary.length}</div><div class="stat-label">คำถาม</div></div>
+        <div class="stat-card card" ${ani} style="animation-delay: 0.3s"><div class="stat-icon">🏆</div><div class="stat-value">${d.leaderboard[0]?.totalScore || 0}</div><div class="stat-label">คะแนนสูงสุด</div></div>
+        <div class="stat-card card" ${ani} style="animation-delay: 0.4s"><div class="stat-icon">🎯</div><div class="stat-value">${d.questionSummary.length ? Math.round(d.questionSummary.reduce((s,q)=>s+q.accuracy,0)/d.questionSummary.length) : 0}%</div><div class="stat-label">Accuracy เฉลี่ย</div></div>
+      </div>
+      <div class="grid-2" style="gap:16px">
+        <div class="card" ${ani} style="animation-delay: 0.5s">
+          <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">📊 กราฟสรุปผลความแม่นยำ (Donut)</h3>
+          <div style="position:relative; height:250px; width:100%">
+            <canvas id="accuracyChart"></canvas>
+          </div>
+        </div>
+        <div class="card" ${ani} style="animation-delay: 0.6s">
+          <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">🏆 Leaderboard (Top 10)</h3>
+          ${d.leaderboard.slice(0,10).map((p,i)=>`
+            <div class="leaderboard-item rank-${i<3?i+1:'other'}">
+              <div class="rank-badge">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+              <div class="player-name">${p.name}</div>
+              <div class="player-score">${p.totalScore}</div>
+            </div>`).join('') || '<div class="text-muted">ไม่มีข้อมูลผู้เล่น</div>'}
+        </div>
+      </div>
+      <div class="card" ${ani} style="animation-delay: 0.7s; margin-top:16px;">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">📊 กราฟความถูกต้องรายข้อ (Bar)</h3>
+        <div style="position:relative; height:250px; width:100%">
+          <canvas id="questionBarChart"></canvas>
+        </div>
+      </div>`;
+      
+      // Render Chart
+      setTimeout(() => {
+        const ctx = document.getElementById('accuracyChart');
+        if (ctx) {
+          if (reportsChartInst) reportsChartInst.destroy();
+          const avgAcc = d.questionSummary.length ? Math.round(d.questionSummary.reduce((s,q)=>s+q.accuracy,0)/d.questionSummary.length) : 0;
+          
+          reportsChartInst = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: ['ถูกต้อง (Correct)', 'ผิดพลาด (Incorrect)'],
+              datasets: [{
+                data: [avgAcc, 100 - avgAcc],
+                backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)'],
+                borderColor: ['#10b981', '#ef4444'],
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: { animateScale: true, animateRotate: true, duration: 1500, easing: 'easeOutQuart' },
+              plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1' } } },
+              cutout: '70%'
+            }
+          });
+        }
+        
+        const barCtx = document.getElementById('questionBarChart');
+        if (barCtx) {
+          if (reportsBarInst) reportsBarInst.destroy();
+          reportsBarInst = new Chart(barCtx, {
+            type: 'bar',
+            data: {
+              labels: d.questionSummary.map((_, i) => 'ข้อ ' + (i + 1)),
+              datasets: [{
+                label: 'ความถูกต้อง (%)',
+                data: d.questionSummary.map(q => q.accuracy),
+                backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                borderColor: '#3b82f6',
+                borderWidth: 1,
+                borderRadius: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: { duration: 1500, easing: 'easeOutQuart' },
+              scales: {
+                y: { beginAtZero: true, max: 100, ticks: { color: '#cbd5e1' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                x: { ticks: { color: '#cbd5e1' }, grid: { display: false } }
+              },
+              plugins: { legend: { display: false } }
+            }
+          });
+        }
+      }, 50);
+  });
+}
+
+// ── EXPORT ENGINE ──
+document.addEventListener('click', () => {
+  const em = document.getElementById('exportMenu');
+  if (em) em.style.display = 'none';
+});
+
+function exportReport(type) {
+  const em = document.getElementById('exportMenu');
+  if (em) em.style.display = 'none';
+  if (!window.currentReportData) return showToast('ไม่มีข้อมูล Report', 'error');
+
+  const d = window.currentReportData;
+  const title = (d.session && d.session.quizTitle ? d.session.quizTitle : 'Report').replace(/[/\\?%*:|"<>]/g, '-');
+  
+  showLoading('กำลังเตรียมไฟล์...');
+  
+  setTimeout(() => {
+    try {
+      if (type === 'excel') {
+        const wb = XLSX.utils.book_new();
+        const lbData = d.leaderboard.map((p, i) => ({
+          'อันดับ': i + 1,
+          'ชื่อผู้เล่น': p.name,
+          'คะแนนรวม': p.totalScore,
+        }));
+        const ws1 = XLSX.utils.json_to_sheet(lbData);
+        XLSX.utils.book_append_sheet(wb, ws1, "Leaderboard");
+
+        const sumData = d.questionSummary.map((q, i) => ({
+          'ข้อที่': q.order_num,
+          'คำถาม': q.text,
+          'ประเภท': q.type,
+          'ตอบถูก (คน)': q.correct,
+          'ความแม่นยำ (%)': q.accuracy
+        }));
+        const ws2 = XLSX.utils.json_to_sheet(sumData);
+        XLSX.utils.book_append_sheet(wb, ws2, "Questions Summary");
+
+        XLSX.writeFile(wb, `Report_${title}.xlsx`);
+        showToast('Export Excel สำเร็จ!', 'success');
+      } 
+      else if (type === 'pdf') {
+        const element = document.getElementById('reports-content');
+        const menuBtn = element.querySelector('.dropdown');
+        if(menuBtn) menuBtn.style.display = 'none';
+        
+        const opt = {
+          margin:       10,
+          filename:     `Report_${title}.pdf`,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true },
+          jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save().then(()=>{
+          if(menuBtn) menuBtn.style.display = 'block';
+          showToast('Export PDF สำเร็จ!', 'success');
+        });
+        return hideLoading();
+      }
+      else if (type === 'ppt') {
+        let pres = new pptxgen();
+        pres.layout = 'LAYOUT_16x9';
+
+        let slide = pres.addSlide();
+        slide.addText('รายงานผล: ' + title, { x:1, y:1, w:'80%', h:1, fontSize: 32, bold: true, color:'363636' });
+        slide.addText('ผู้เข้าร่วมทั้งหมด: ' + d.participantCount + ' คน', { x:1, y:2.5, w:'80%', h:1, fontSize: 24, color:'666666' });
+
+        let slide2 = pres.addSlide();
+        slide2.addText('🏆 Leaderboard (Top 10)', { x:1, y:0.5, w:'80%', h:1, fontSize: 24, bold: true });
+        let rows = [['อันดับ', 'ชื่อ', 'คะแนน']];
+        d.leaderboard.slice(0, 10).forEach((p,i) => {
+          rows.push([i+1, p.name, p.totalScore]);
+        });
+        slide2.addTable(rows, { x: 1, y: 1.5, w: 8, fill: 'F7F7F7', fontSize: 14, color:'363636' });
+
+        pres.writeFile({ fileName: `Report_${title}.pptx` }).then(() => {
+          showToast('Export PPT สำเร็จ!', 'success');
+        }).catch(err => {
+          console.error(err);
+          showToast('Export PPT ล้มเหลว', 'error');
+        });
+      }
+    } catch(e) {
+      console.error(e);
+      showToast('เกิดข้อผิดพลาดในการ Export', 'error');
+    }
+    hideLoading();
+  }, 500);
+}
+
+// ── SETTINGS ──
+function loadSettings() {
+  gasRun('getSettings', null, res => {
+    if (!res.success) return;
+    const s = res.data;
+    if (s.app_name)   document.getElementById('s-app-name').value = s.app_name;
+    if (s.app_color)  {
+      document.getElementById('s-color').value = s.app_color;
+      document.documentElement.style.setProperty('--primary', s.app_color);
+    }
+    if (s.fontFamily) document.getElementById('s-font').value = s.fontFamily;
+    if (s.fontSize)   document.getElementById('s-font-size').value = s.fontSize;
+    if (s.default_time_limit) document.getElementById('s-time').value = s.default_time_limit;
+    if (s.leaderboard_enabled) document.getElementById('s-leaderboard').checked = s.leaderboard_enabled === 'true';
+    if (s.music_enabled) document.getElementById('s-music').checked = s.music_enabled === 'true';
+    if (s.music_volume) document.getElementById('s-music-vol').value = s.music_volume;
+  });
+}
+function saveAllSettings() {
+  showLoading('บันทึก...');
+  gasRun('saveSettings', [{
+    app_name:          document.getElementById('s-app-name').value,
+    app_color:         document.getElementById('s-color').value,
+    fontFamily:        document.getElementById('s-font').value,
+    fontSize:          document.getElementById('s-font-size').value,
+    default_time_limit:document.getElementById('s-time').value,
+    leaderboard_enabled: document.getElementById('s-leaderboard').checked ? 'true' : 'false',
+    music_enabled:     document.getElementById('s-music').checked ? 'true' : 'false',
+    music_volume:      document.getElementById('s-music-vol').value,
+    ...(document.getElementById('s-admin-pass').value ? { admin_password: document.getElementById('s-admin-pass').value } : {})
+  }], res => {
+    hideLoading();
+    if (res.success) {
+      showToast('บันทึกการตั้งค่าสำเร็จ!', 'success');
+      // Apply immediately
+      const font = document.getElementById('s-font').value || "'Outfit', 'Sarabun', sans-serif";
+      document.documentElement.style.setProperty('--font-main', font);
+      document.documentElement.style.setProperty('--primary', document.getElementById('s-color').value);
+      if (document.getElementById('s-font-size').value) {
+        document.documentElement.style.fontSize = document.getElementById('s-font-size').value + 'px';
+      }
+    }
+    else showToast(res.error, 'error');
+  });
+}
+
+// ── MUSIC ──
+function loadMusicFiles() {
+  showLoading('โหลดรายการเพลง...');
+  gasRun('getMusicFiles', null, res => {
+    hideLoading();
+    const list = document.getElementById('music-list');
+    if (!res.success || !res.data.length) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">🎵</div><div class="empty-title">ไม่พบไฟล์เพลงในระบบ</div><div class="empty-desc">อัปโหลดไฟล์จากเครื่อง หรือใช้ลิงก์ Google Drive ด้านบน</div></div>';
+      return;
+    }
+    list.innerHTML = res.data.map(f => `
+      <div class="card" style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px">🎵</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${f.name}</div>
+          <div class="text-sm text-muted">${f.mimeType}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="selectMusic('${f.id}','${f.url}','${f.name}')">เลือก</button>
+        <button class="btn btn-ghost btn-sm" onclick="previewMusic('${f.url}')">▶</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMusic('${f.name}')">🗑</button>
+      </div>`).join('');
+  });
+}
+
+function uploadLocalMusic() {
+  const fileInput = document.getElementById('music-upload-input');
+  if (!fileInput.files.length) return;
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append('filename', encodeURIComponent(file.name));
+  formData.append('file', file);
+
+  showLoading('กำลังอัปโหลด...');
+  fetch('/api/music/upload', { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(res => {
+      hideLoading();
+      fileInput.value = '';
+      if (res.success) {
+        showToast('อัปโหลดสำเร็จ!', 'success');
+        loadMusicFiles();
+      } else {
+        showToast('อัปโหลดล้มเหลว: ' + res.error, 'error');
+      }
+    }).catch(err => {
+      hideLoading();
+      showToast('เกิดข้อผิดพลาดในการอัปโหลด', 'error');
+    });
+}
+
+function addDriveMusic() {
+  const url = document.getElementById('music-drive-url').value.trim();
+  if (!url) return showToast('กรุณาวางลิงก์ก่อน', 'warning');
+  selectMusic('drive-' + Date.now(), url, 'Google Drive Audio');
+  document.getElementById('music-drive-url').value = '';
+}
+
+function deleteMusic(filename) {
+  confirmDialog(`ต้องการลบไฟล์ "${filename}" ใช่หรือไม่?`, () => {
+    fetch('/api/music/' + encodeURIComponent(filename), { method: 'DELETE' })
+      .then(r => r.json())
+      .then(res => {
+        if (res.success) {
+          showToast('ลบไฟล์สำเร็จ', 'success');
+          loadMusicFiles();
+        } else showToast('ไม่สามารถลบไฟล์ได้', 'error');
+      });
+  });
+}
+
+let previewAudio = null;
+function previewMusic(url) {
+  if (previewAudio) previewAudio.pause();
+  previewAudio = window.MusicPlayer ? window.MusicPlayer : { init: () => {}, play: () => {} };
+  
+  if (window.MusicPlayer) {
+    window.MusicPlayer.init(url);
+    window.MusicPlayer.play();
+  } else {
+    previewAudio = new Audio(url);
+    previewAudio.play().catch(() => showToast('ไม่สามารถเล่นได้ (Google Drive อาจจำกัด)', 'warning'));
+  }
+}
+function selectMusic(id, url, name) {
+  gasRun('saveSettings', [{ music_file_id: id, music_file_url: url }], res => {
+    if (res.success) showToast(`เลือก "${name}" เป็นเพลงประกอบแล้ว`, 'success');
+  });
+}
+
+// ── MODAL HELPERS ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-backdrop').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ── INIT ──
+window.addEventListener('load', function() { loadDashboard(); });
+function doLogout() {
+  if (confirm('คุณต้องการออกจากระบบหรือไม่?')) {
+    sessionStorage.removeItem('adminAuth');
+    sessionStorage.removeItem('hostName');
+    window.location.href = '/login';
+  }
+}
+
+</script>
+</body>
+</html>

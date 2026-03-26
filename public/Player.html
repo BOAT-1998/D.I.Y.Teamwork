@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>D.I.Y. Teamwork — เข้าร่วม</title>
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg-dark);min-height:100vh;max-width:480px;margin:0 auto;font-family:'Outfit','Sarabun',sans-serif;overflow-x:hidden}
+:root{
+  --q-font-size:22px;
+  --q-font-color:#f8fafc;
+  --choice-font-size:16px;
+  --choice-font-color:#e5e7eb;
+}
+.screen{display:none;min-height:100vh;flex-direction:column;padding:20px;animation:fadeIn .35s ease}
+.screen.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+@keyframes popIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+@keyframes correctPulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.6)}70%{box-shadow:0 0 0 20px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+@keyframes wrongShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+@keyframes scaleIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes dotBounce{0%,80%,100%{transform:scale(.6)}40%{transform:scale(1)}}
+@keyframes avatarFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+
+/* JOIN */
+.join-screen{align-items:center;justify-content:center;text-align:center;gap:0}
+.join-logo{font-size:52px;margin-bottom:8px;animation:avatarFloat 3s ease infinite}
+.join-title{font-size:26px;font-weight:900;color:#fff;margin-bottom:4px}
+.join-sub{color:var(--text-muted);font-size:13px;margin-bottom:28px}
+.join-card{width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);padding:24px}
+.avatar-picker-label{font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;text-align:left}
+.avatar-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:18px}
+.avatar-option{width:42px;height:42px;border-radius:11px;background:rgba(255,255,255,.05);border:2px solid transparent;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;-webkit-tap-highlight-color:transparent}
+.avatar-option:hover{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.08);transform:scale(1.1)}
+.avatar-option.selected{border-color:var(--primary);background:rgba(16,185,129,.18);transform:scale(1.15);box-shadow:0 0 10px rgba(16,185,129,.35)}
+.pin-input-big{width:100%;font-family:'Outfit',sans-serif;font-size:36px;font-weight:900;letter-spacing:12px;text-align:center;padding:18px 12px;background:rgba(255,255,255,.05);border:3px solid rgba(255,255,255,.1);border-radius:var(--radius-lg);color:var(--primary);outline:none;transition:all .2s;margin-bottom:12px}
+.pin-input-big:focus{border-color:var(--primary);background:rgba(16,185,129,.06)}
+.pin-input-big.shake{animation:shake .4s ease}
+.name-input-big{width:100%;font-size:16px;padding:14px 18px;text-align:center;background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:var(--radius-lg);color:var(--text-primary);outline:none;transition:all .2s;margin-bottom:14px;font-family:'Outfit',sans-serif}
+.name-input-big:focus{border-color:var(--primary)}
+
+/* WAITING */
+.waiting-screen{align-items:center;justify-content:center;text-align:center}
+.avatar-display{font-size:84px;margin-bottom:12px;animation:avatarFloat 3s ease infinite}
+.waiting-name{font-size:24px;font-weight:800;margin-bottom:4px;color:#fff}
+.waiting-sub{color:var(--text-muted);font-size:14px;margin-bottom:20px}
+.waiting-pin{font-family:'Outfit',sans-serif;font-size:48px;font-weight:900;color:var(--primary);letter-spacing:8px;padding:18px 28px;background:rgba(16,185,129,.1);border-radius:var(--radius-xl);border:2px solid rgba(16,185,129,.2);margin-bottom:12px}
+.waiting-count{color:var(--text-secondary);font-size:14px;margin-bottom:16px}
+.pulse-dots{display:flex;gap:8px;justify-content:center}
+.pulse-dots span{width:10px;height:10px;border-radius:50%;background:var(--primary);animation:dotBounce 1.2s ease infinite}
+.pulse-dots span:nth-child(2){animation-delay:.2s}
+.pulse-dots span:nth-child(3){animation-delay:.4s}
+
+/* QUESTION */
+.question-screen{justify-content:flex-start;padding:16px}
+.q-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.q-avatar-mini{font-size:28px;flex-shrink:0}
+.q-header-info{flex:1}
+.q-progress-label{font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px}
+.q-player-label{font-size:12px;color:var(--text-muted)}
+.q-timer-wrap{margin-left:auto}
+.q-type-label{font-size:11px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.q-text-big{font-size:var(--q-font-size);font-weight:800;line-height:1.5;margin-bottom:18px;color:var(--q-font-color);text-shadow:0 1px 0 rgba(0,0,0,.25)}
+.q-image{border-radius:var(--radius-lg);margin-bottom:14px;max-height:170px;object-fit:cover;width:100%}
+.choices-wrap{flex:1;display:flex;flex-direction:column;gap:9px}
+.choice-big{width:100%;padding:15px 16px;border-radius:var(--radius-lg);border:2px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;gap:12px;font-size:var(--choice-font-size);color:var(--choice-font-color);font-weight:600;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent;text-align:left;font-family:'Outfit',sans-serif;animation:slideUp .35s ease both}
+.choice-big:active{transform:scale(.97)}
+.choice-big:hover:not(.disabled){border-color:var(--primary);background:rgba(16,185,129,.08)}
+.choice-big.selected{border-color:var(--primary);background:rgba(16,185,129,.15)}
+.choice-big.correct{border-color:#10b981!important;background:rgba(16,185,129,.25)!important;animation:correctPulse .6s ease}
+.choice-big.wrong{border-color:#ef4444!important;background:rgba(239,68,68,.2)!important;animation:wrongShake .4s ease}
+.choice-big.disabled{pointer-events:none;opacity:.65}
+.choice-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0}
+.ci-a{background:rgba(239,68,68,.2);color:#f87171}
+.ci-b{background:rgba(59,130,246,.2);color:#60a5fa}
+.ci-c{background:rgba(245,158,11,.2);color:#fbbf24}
+.ci-d{background:rgba(16,185,129,.2);color:#34d399}
+.ci-e{background:rgba(139,92,246,.2);color:#a78bfa}
+.ci-f{background:rgba(236,72,153,.2);color:#f472b6}
+.btn-submit-answer{width:100%;padding:17px;border-radius:var(--radius-lg);background:linear-gradient(135deg,var(--primary),var(--primary-dark));border:none;color:#fff;font-size:17px;font-weight:800;cursor:pointer;margin-top:14px;transition:all .2s;font-family:'Outfit',sans-serif}
+.btn-submit-answer:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(16,185,129,.4)}
+.text-answer-input{width:100%;padding:15px;border-radius:var(--radius-lg);background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);color:var(--choice-font-color);font-size:var(--choice-font-size);outline:none;transition:all .2s;font-family:'Outfit',sans-serif;min-height:100px;resize:none}
+.text-answer-input:focus{border-color:var(--primary)}
+.rating-wrap{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:14px 0}
+.rating-opt{width:54px;height:54px;border-radius:14px;background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;cursor:pointer;transition:all .2s;font-family:'Outfit',sans-serif}
+.rating-opt:hover,.rating-opt.selected{border-color:var(--primary);background:rgba(16,185,129,.15);color:var(--primary);transform:scale(1.12)}
+.q-font-btn{margin-left:8px;width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;font-weight:800;cursor:pointer}
+.q-font-btn:hover{border-color:var(--primary);color:var(--primary)}
+.font-panel{position:fixed;right:14px;top:14px;z-index:999;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:12px;width:240px;display:none;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.font-panel.open{display:block}
+.font-panel-title{font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px}
+.font-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.font-row label{font-size:11px;color:var(--text-muted);flex:1}
+.font-row input[type=range]{flex:1}
+.font-row .val{font-size:11px;color:var(--text-secondary);min-width:28px;text-align:right}
+.font-row input[type=color]{width:36px;height:24px;padding:0;border:none;background:transparent}
+.font-row input[type=checkbox]{transform:scale(1.1)}
+
+/* SCORE */
+.score-screen{align-items:center;justify-content:center;text-align:center}
+.score-circle{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 0 60px rgba(16,185,129,.5);animation:scaleIn .5s cubic-bezier(.34,1.56,.64,1)}
+.score-number{font-size:48px;font-weight:900;color:#fff}
+.score-label{color:rgba(255,255,255,.7);font-size:14px}
+.answered-icon{font-size:72px;margin-bottom:12px;animation:popIn .5s cubic-bezier(.34,1.56,.64,1)}
+.answered-title{font-size:22px;font-weight:800}
+.answered-sub{color:var(--text-muted);font-size:14px;margin-top:6px}
+.waiting-next-anim{display:flex;gap:6px;margin-top:20px;justify-content:center}
+.waiting-next-anim span{width:8px;height:8px;border-radius:50%;background:var(--primary);animation:dotBounce 1.2s ease infinite}
+.waiting-next-anim span:nth-child(2){animation-delay:.2s}
+.waiting-next-anim span:nth-child(3){animation-delay:.4s}
+.confetti-piece{position:fixed;width:10px;height:10px;top:-20px;pointer-events:none;animation:confettiFall linear forwards}
+.ended-screen{align-items:center;justify-content:center;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- JOIN -->
+<div id="screen-join" class="screen active">
+  <div class="join-screen" style="width:100%">
+    <div class="join-logo">🎮</div>
+    <div class="join-title">D.I.Y. Teamwork</div>
+    <div class="join-sub">เลือก Avatar แล้วกรอก PIN เพื่อเข้าร่วม</div>
+    <div class="join-card">
+      <div class="avatar-picker-label">🐾 เลือก Avatar ของคุณ</div>
+      <div class="avatar-grid" id="avatar-grid"></div>
+      <input class="pin-input-big" id="pin-input" type="text" inputmode="numeric" maxlength="6" placeholder="PIN" oninput="this.value=this.value.replace(/\D/g,'')">
+      <input class="name-input-big" id="name-input" type="text" placeholder="ชื่อของคุณ..." maxlength="50">
+      <p id="join-error" style="color:#f87171;font-size:13px;margin-bottom:12px;display:none"></p>
+      <button class="btn-submit-answer" onclick="doJoin()">เข้าร่วม →</button>
+    </div>
+  </div>
+</div>
+
+<!-- WAITING -->
+<div id="screen-waiting" class="screen">
+  <div class="waiting-screen" style="width:100%">
+    <div class="avatar-display" id="w-avatar">🎮</div>
+    <div class="waiting-name" id="w-name"></div>
+    <div class="waiting-sub">รหัสเข้าร่วม</div>
+    <div class="waiting-pin" id="w-pin"></div>
+    <div class="waiting-count" id="w-count">กำลังรอผู้เข้าร่วม...</div>
+    <div class="pulse-dots"><span></span><span></span><span></span></div>
+  </div>
+</div>
+
+<!-- QUESTION -->
+<div id="screen-question" class="screen">
+  <div class="q-header">
+    <div class="q-avatar-mini" id="q-avatar-mini">🎮</div>
+    <div class="q-header-info">
+      <div class="q-progress-label" id="q-session-title">Q&A</div>
+      <div class="q-player-label" id="q-player-name"></div>
+    </div>
+  <div class="q-timer-wrap" id="q-timer-wrap"></div>
+  <button class="q-font-btn" id="font-settings-btn" title="ปรับตัวอักษร">Aa</button>
+  </div>
+  <div class="q-type-label" id="q-type-label"></div>
+  <div id="q-img-wrap"></div>
+  <div class="q-text-big" id="q-text"></div>
+  <div id="q-answer-area" class="choices-wrap"></div>
+</div>
+
+<!-- SCORE -->
+<div id="screen-score" class="screen">
+  <div style="width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center">
+    <div id="score-display"></div>
+  </div>
+</div>
+
+<!-- ENDED -->
+<div id="screen-ended" class="screen">
+  <div class="ended-screen" style="width:100%">
+    <div style="font-size:80px;margin-bottom:12px;animation:avatarFloat 3s ease infinite" id="ended-avatar">🎊</div>
+    <h2 style="font-size:26px;font-weight:800;margin-bottom:8px;color:#fff">จบแล้ว!</h2>
+    <p style="color:var(--text-muted);margin-bottom:28px">ขอบคุณที่เข้าร่วม 😊</p>
+    <div id="final-rank"></div>
+    <button class="btn-submit-answer" style="margin-top:28px;max-width:300px" onclick="location.reload()">🔄 เข้าร่วมใหม่</button>
+  </div>
+</div>
+
+<!-- FONT SETTINGS -->
+<div id="font-settings-panel" class="font-panel">
+  <div class="font-panel-title">ตัวอักษร &amp; เสียง</div>
+  <div class="font-row">
+    <label>ขนาดคำถาม</label>
+    <input type="range" id="fs-q-size" min="18" max="30" value="22">
+    <span class="val" id="fs-q-size-val">22</span>
+  </div>
+  <div class="font-row">
+    <label>สีคำถาม</label>
+    <input type="color" id="fs-q-color" value="#f8fafc">
+  </div>
+  <div class="font-row">
+    <label>ขนาดตัวเลือก</label>
+    <input type="range" id="fs-c-size" min="14" max="24" value="16">
+    <span class="val" id="fs-c-size-val">16</span>
+  </div>
+  <div class="font-row">
+    <label>สีตัวเลือก</label>
+    <input type="color" id="fs-c-color" value="#e5e7eb">
+  </div>
+  <div class="font-row">
+    <label>เสียงเริ่มข้อสอบ</label>
+    <input type="checkbox" id="fs-sound" checked>
+  </div>
+</div>
+
+<script src="/js/scripts.js"></script>
+<script>
+// ── AVATARS ──
+const AVATARS = [
+  '🐶','🐱','🐼','🐨','🦊','🐯','🦁','🐸','🐧','🦋',
+  '🐙','🦄','🐲','🐺','🦖','🐬','🦅','🐣','🦔','🐝',
+  '👦','👧','🧒','👩','👨','🧔','👱','🧕','🧑','👶'
+];
+let selectedAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
+
+// Build grid
+(function() {
+  const grid = document.getElementById('avatar-grid');
+  AVATARS.forEach(av => {
+    const el = document.createElement('div');
+    el.className = 'avatar-option' + (av === selectedAvatar ? ' selected' : '');
+    el.textContent = av;
+    el.onclick = () => {
+      selectedAvatar = av;
+      document.querySelectorAll('.avatar-option').forEach(e => e.classList.remove('selected'));
+      el.classList.add('selected');
+    };
+    grid.appendChild(el);
+  });
+})();
+
+// ── STATE ──
+let ps = {
+  participantId:null, sessionId:null,
+  name:'', avatar:selectedAvatar, pin:'',
+  currentQId:null, lastQIdx:-1,
+  hasAnswered:false, showAnswer:false, timer:null, poller:null,
+};
+
+// â”€â”€ FONT & SOUND SETTINGS â”€â”€
+const FONT_PREF_KEY = 'playerFontPrefs_v1';
+const defaultFontPrefs = {
+  qSize: 22,
+  qColor: '#f8fafc',
+  choiceSize: 16,
+  choiceColor: '#e5e7eb',
+  sound: true
+};
+let fontPrefs = { ...defaultFontPrefs };
+let audioCtx = null;
+
+function applyFontPrefs() {
+  document.documentElement.style.setProperty('--q-font-size', `${fontPrefs.qSize}px`);
+  document.documentElement.style.setProperty('--q-font-color', fontPrefs.qColor);
+  document.documentElement.style.setProperty('--choice-font-size', `${fontPrefs.choiceSize}px`);
+  document.documentElement.style.setProperty('--choice-font-color', fontPrefs.choiceColor);
+}
+
+function loadFontPrefs() {
+  try {
+    const raw = localStorage.getItem(FONT_PREF_KEY);
+    if (raw) fontPrefs = { ...defaultFontPrefs, ...JSON.parse(raw) };
+  } catch {}
+  applyFontPrefs();
+  syncFontControls();
+}
+
+function saveFontPrefs() {
+  try { localStorage.setItem(FONT_PREF_KEY, JSON.stringify(fontPrefs)); } catch {}
+}
+
+function syncFontControls() {
+  const qSize = document.getElementById('fs-q-size');
+  const qSizeVal = document.getElementById('fs-q-size-val');
+  const qColor = document.getElementById('fs-q-color');
+  const cSize = document.getElementById('fs-c-size');
+  const cSizeVal = document.getElementById('fs-c-size-val');
+  const cColor = document.getElementById('fs-c-color');
+  const sound = document.getElementById('fs-sound');
+  if (qSize) qSize.value = fontPrefs.qSize;
+  if (qSizeVal) qSizeVal.textContent = fontPrefs.qSize;
+  if (qColor) qColor.value = fontPrefs.qColor;
+  if (cSize) cSize.value = fontPrefs.choiceSize;
+  if (cSizeVal) cSizeVal.textContent = fontPrefs.choiceSize;
+  if (cColor) cColor.value = fontPrefs.choiceColor;
+  if (sound) sound.checked = !!fontPrefs.sound;
+}
+
+function initFontSettings() {
+  const btn = document.getElementById('font-settings-btn');
+  const panel = document.getElementById('font-settings-panel');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+  });
+  document.addEventListener('click', e => {
+    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) {
+      panel.classList.remove('open');
+    }
+  });
+
+  const qSize = document.getElementById('fs-q-size');
+  const qSizeVal = document.getElementById('fs-q-size-val');
+  const qColor = document.getElementById('fs-q-color');
+  const cSize = document.getElementById('fs-c-size');
+  const cSizeVal = document.getElementById('fs-c-size-val');
+  const cColor = document.getElementById('fs-c-color');
+  const sound = document.getElementById('fs-sound');
+
+  if (qSize) qSize.addEventListener('input', () => {
+    fontPrefs.qSize = parseInt(qSize.value, 10) || defaultFontPrefs.qSize;
+    if (qSizeVal) qSizeVal.textContent = fontPrefs.qSize;
+    applyFontPrefs(); saveFontPrefs();
+  });
+  if (qColor) qColor.addEventListener('input', () => {
+    fontPrefs.qColor = qColor.value || defaultFontPrefs.qColor;
+    applyFontPrefs(); saveFontPrefs();
+  });
+  if (cSize) cSize.addEventListener('input', () => {
+    fontPrefs.choiceSize = parseInt(cSize.value, 10) || defaultFontPrefs.choiceSize;
+    if (cSizeVal) cSizeVal.textContent = fontPrefs.choiceSize;
+    applyFontPrefs(); saveFontPrefs();
+  });
+  if (cColor) cColor.addEventListener('input', () => {
+    fontPrefs.choiceColor = cColor.value || defaultFontPrefs.choiceColor;
+    applyFontPrefs(); saveFontPrefs();
+  });
+  if (sound) sound.addEventListener('change', () => {
+    fontPrefs.sound = !!sound.checked;
+    saveFontPrefs();
+  });
+}
+
+function playSfx(type) {
+  if (!fontPrefs.sound) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain).connect(audioCtx.destination);
+    
+    if (type === 'tick') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.1, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+      osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'correct') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(554.37, now + 0.1);
+      osc.frequency.setValueAtTime(659.25, now + 0.2);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0, now + 0.4);
+      osc.start(now); osc.stop(now + 0.4);
+    } else if (type === 'wrong') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0, now + 0.3);
+      osc.start(now); osc.stop(now + 0.3);
+    } else if (type === 'reveal') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.15);
+      osc.frequency.setValueAtTime(783.99, now + 0.3);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0, now + 0.5);
+      osc.start(now); osc.stop(now + 0.5);
+    } else if (type === 'tada') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(440, now + 0.1);
+      osc.frequency.setValueAtTime(554, now + 0.2);
+      osc.frequency.setValueAtTime(659, now + 0.4);
+      osc.frequency.setValueAtTime(880, now + 0.6);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0.1, now + 0.2);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.4);
+      gain.gain.linearRampToValueAtTime(0, now + 1.0);
+      osc.start(now); osc.stop(now + 1.0);
+    } else if (type === 'start') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.2, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      osc.start(now); osc.stop(now + 0.25);
+    }
+  } catch {}
+}
+
+initFontSettings();
+loadFontPrefs();
+
+// Pre-fill URL params
+(function init() {
+  // Load Music Settings mapping
+  gasRun('getSettings', null, res => {
+    if (res.success && res.data) {
+      const s = res.data;
+      if (s.music_enabled !== 'false') {
+        const fileId  = s.music_file_id  || '';
+        let fileUrl = s.music_file_url || '';
+        if (!fileId && !fileUrl) fileUrl = '/uploads/music/bgm.mp3';
+        const initVal = fileId || fileUrl;
+        if (initVal) {
+          MusicPlayer.init(initVal);
+          MusicPlayer.setVol(0.3); // Slightly quieter for player
+        }
+      }
+    }
+  });
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const mPin = urlParams.get('pin');
+  const name = urlParams.get('name') || sessionStorage.getItem('playerName') || '';
+  if (mPin)  document.getElementById('pin-input').value  = mPin;
+  if (name) document.getElementById('name-input').value = name;
+  if (mPin && name) setTimeout(doJoin, 400);
+})();
+
+// ── JOIN ──
+function enterPin() {
+  const pin = document.getElementById('pin-input').value.trim();
+  if(!pin) return showToast('กรุณากรอก PIN', 'warning');
+  if(pin.length !== 6) { trigShake('pin-input'); return showToast('กรุณากรอก PIN 6 หลัก', 'warning'); }
+  
+  showLoading('กำลังตรวจสอบ PIN...');
+  gasRun('validatePin', [pin], res => {
+    hideLoading();
+    if (!res.success) {
+      document.getElementById('pin-input').value = '';
+      return showToast(res.error, 'error');
+    }
+    ps.pin = pin;
+    if (MusicPlayer && MusicPlayer.paused) MusicPlayer.play().catch(()=>{});
+    showScreen('name');
+  });
+}
+function doJoin() {
+  const pin  = document.getElementById('pin-input').value.trim();
+  const name = document.getElementById('name-input').value.trim();
+  const errEl = document.getElementById('join-error');
+
+  if (pin.length !== 6) {
+    showErr(errEl,'กรุณากรอก PIN 6 หลัก');
+    trigShake('pin-input'); return;
+  }
+  if (!name) { showErr(errEl,'กรุณากรอกชื่อของคุณ'); return; }
+  errEl.style.display = 'none';
+
+  showLoading('กำลังเข้าร่วม...');
+  gasRun('joinSession', [pin, name, selectedAvatar], res => {
+    hideLoading();
+    if (!res.success) { 
+      showToast(res.error, 'error'); 
+      if (res.error.includes('เริ่มแล้ว')) {
+        document.getElementById('pin-input').value = '';
+        showScreen('pin');
+      }
+      return; 
+    }
+
+    // Success -> Setup poll
+    ps.participantId = res.participantId;
+    ps.sessionId     = res.sessionId;
+    ps.name          = name;
+    ps.avatar        = selectedAvatar;
+    ps.pin           = pin;
+    sessionStorage.setItem('playerName', name);
+
+    document.getElementById('w-name').textContent   = name;
+    document.getElementById('w-pin').textContent    = pin;
+    document.getElementById('w-avatar').textContent = selectedAvatar;
+    showScreen('waiting');
+
+    if (ps.poller) ps.poller.stop();
+    ps.poller = new Poller(pollSession, 2000);
+    ps.poller.start();
+  });
+}
+
+function showErr(el, msg) {
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3500);
+}
+function trigShake(id) {
+  const el = document.getElementById(id);
+  el.classList.add('shake');
+  setTimeout(() => el.classList.remove('shake'), 500);
+}
+
+// ── POLL LOOP (2s) ──
+function pollSession() {
+  if (!ps.sessionId) return;
+  gasRun('getLiveSessionData', [ps.sessionId, ps.participantId], res => {
+    if (!res || !res.success) return;
+    const d = res.data;
+
+    // Update waiting screen count always
+    const wc = document.getElementById('w-count');
+    if (wc) wc.textContent = `มีผู้เข้าร่วม ${d.participantCount} คน`;
+
+    if (d.status === 'ended') {
+      ps.poller?.stop(); ps.timer?.stop();
+      showEndedScreen(); return;
+    }
+
+    if (d.status === 'active' && d.currentQuestion) {
+      const q = d.currentQuestion;
+      const isNew = (q.id !== ps.currentQId) || (d.currentQuestionIndex !== ps.lastQIdx);
+      if (isNew) {
+        ps.currentQId  = q.id;
+        ps.lastQIdx    = d.currentQuestionIndex;
+        ps.hasAnswered = d.answered;
+        ps.showAnswer  = false;
+        if (!ps.hasAnswered) {
+          showQuestion(q, d);
+        } else {
+          const cur = document.querySelector('.screen.active')?.id;
+          if (cur !== 'screen-score' && cur !== 'screen-ended') showAnsweredState(null, 0);
+        }
+      }
+      
+      // Reveal answer trigger (everyone sees it, answered or not)
+      if (d.showAnswer && !ps.showAnswer) {
+        ps.showAnswer = true;
+        if (!ps.hasAnswered) { // Force them into timeout if they haven't answered
+          ps.hasAnswered = true;
+          ps.timer?.stop();
+          showTimeoutState();
+        }
+        playSfx('reveal');
+        revealAnswerToPlayer(q.options || []);
+      }
+    }
+  });
+}
+
+function revealAnswerToPlayer(options) {
+  const cur = document.querySelector('.screen.active')?.id;
+  if (cur !== 'screen-score') return;
+  const correctOpts = options.filter(o => o.is_correct === true || o.is_correct === 'true' || o.is_correct === 'TRUE').map(o => o.text);
+  if (!correctOpts.length) return;
+  
+  const el = document.getElementById('score-display');
+  // Avoid duplicate box
+  if (document.getElementById('reveal-box-uid')) return;
+  
+  const box = document.createElement('div');
+  box.id = 'reveal-box-uid';
+  box.style.cssText = 'margin-top:24px;padding:16px;background:rgba(255,255,255,0.05);border:2px solid var(--primary);border-radius:12px;animation:popIn 0.4s ease';
+  box.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">คำตอบที่ถูกต้องคือ</div><div style="font-size:18px;font-weight:700;color:var(--primary)">${window.escapeHtml(correctOpts.join(', '))}</div>`;
+  el.appendChild(box);
+}
+
+// ── SHOW QUESTION ──
+function showQuestion(q, sd) {
+  if (MusicPlayer && MusicPlayer.paused) { MusicPlayer.play().catch(()=>{}); }
+  showScreen('question');
+  playSfx('start');
+  ps.hasAnswered = false;
+  document.getElementById('q-player-name').textContent   = ps.name;
+  document.getElementById('q-session-title').textContent = `ข้อ ${sd.currentQuestionIndex+1} / ${sd.totalQuestions}`;
+  document.getElementById('q-avatar-mini').textContent   = ps.avatar;
+  document.getElementById('q-type-label').textContent    = getTypeLabel(q.type);
+  document.getElementById('q-text').textContent          = q.text;
+
+  const imgWrap = document.getElementById('q-img-wrap');
+  imgWrap.innerHTML = q.image_url ? `<img class="q-image" src="${q.image_url}" alt="">` : '';
+
+  const area = document.getElementById('q-answer-area');
+  area.innerHTML = '';
+  const letters = ['A','B','C','D','E','F'];
+  const ciCls   = ['ci-a','ci-b','ci-c','ci-d','ci-e','ci-f'];
+  const opts    = q.options || [];
+
+  if (['multiple_choice','true_false','poll'].includes(q.type)) {
+    opts.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-big';
+      btn.style.animationDelay = (i*0.08)+'s';
+      btn.innerHTML = `<span class="choice-icon ${ciCls[i]}">${letters[i]}</span><span>${opt.text}</span>`;
+      btn.onclick = () => {
+        if (ps.hasAnswered) return;
+        document.querySelectorAll('.choice-big').forEach(b=>b.classList.remove('selected'));
+        btn.classList.add('selected');
+        submitAnswer(q.id, opt.text, q.type);
+      };
+      area.appendChild(btn);
+    });
+
+  } else if (q.type === 'checkbox') {
+    let sel = [];
+    opts.forEach((opt,i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-big'; btn.dataset.val = opt.text;
+      btn.style.animationDelay = (i*0.08)+'s';
+      btn.innerHTML = `<span class="choice-icon ${ciCls[i]}">${letters[i]}</span><span>${opt.text}</span>`;
+      btn.onclick = () => { btn.classList.toggle('selected'); sel = [...area.querySelectorAll('.choice-big.selected')].map(b=>b.dataset.val); };
+      area.appendChild(btn);
+    });
+    mkSubmit(area, () => { if(!sel.length){showToast('เลือกอย่างน้อย 1 ตัว','warning');return false;} submitAnswer(q.id,sel,q.type); });
+
+  } else if (['short_answer','open_text','q_and_a'].includes(q.type)) {
+    const ta = document.createElement('textarea');
+    ta.className = 'text-answer-input';
+    ta.placeholder = q.type==='q_and_a'?'พิมพ์คำถามของคุณ...':'พิมพ์คำตอบของคุณ...';
+    area.appendChild(ta);
+    mkSubmit(area, () => { const v=ta.value.trim(); if(!v){showToast('กรุณาพิมพ์คำตอบ','warning');return;} submitAnswer(q.id,v,q.type); });
+
+  } else if (q.type === 'word_cloud') {
+    const inp = document.createElement('input');
+    inp.className='name-input-big'; inp.style.cssText='text-align:left;margin-bottom:12px';
+    inp.placeholder='พิมพ์คำที่นึกถึง...';
+    area.appendChild(inp);
+    mkSubmit(area, () => { if(!inp.value.trim()){showToast('กรุณาพิมพ์คำ','warning');return;} submitAnswer(q.id,inp.value.trim(),q.type); });
+
+  } else if (q.type === 'rating') {
+    const rOpts = opts.length ? opts : [1,2,3,4,5].map(n=>({text:String(n)}));
+    const wrap = document.createElement('div'); wrap.className='rating-wrap';
+    let sv=null;
+    rOpts.forEach(opt => {
+      const btn=document.createElement('button'); btn.className='rating-opt'; btn.textContent=opt.text;
+      btn.onclick=()=>{ sv=opt.text; wrap.querySelectorAll('.rating-opt').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); };
+      wrap.appendChild(btn);
+    });
+    area.appendChild(wrap);
+    mkSubmit(area, () => { if(!sv){showToast('กรุณาเลือกคะแนน','warning');return;} submitAnswer(q.id,sv,q.type); });
+  }
+
+  // Timer
+  ps.timer?.stop();
+  const tl = Number(q.time_limit)||0;
+  if (tl>0) {
+    ps.timer = new CountdownTimer(tl,
+      (rem,tot) => {
+        renderRingTimer('q-timer-wrap', rem, tot);
+        if (rem > 0 && rem <= 5) playSfx('tick');
+      },
+      () => { if(!ps.hasAnswered){ ps.hasAnswered=true; showToast('⏰ หมดเวลา!','warning'); playSfx('wrong'); showTimeoutState(); } }
+    );
+    ps.timer.start();
+  } else {
+    document.getElementById('q-timer-wrap').innerHTML='';
+  }
+}
+
+function mkSubmit(area, fn) {
+  const btn=document.createElement('button'); btn.className='btn-submit-answer'; btn.textContent='ส่งคำตอบ ✓';
+  btn.onclick = () => { if (ps.hasAnswered) return; fn(); };
+  area.appendChild(btn);
+}
+
+// ── SUBMIT ──
+function submitAnswer(qId, answer, qType) {
+  if (ps.hasAnswered) return;
+  ps.hasAnswered = true;
+  ps.timer?.stop();
+  document.querySelectorAll('.choice-big').forEach(b=>b.classList.add('disabled'));
+
+  gasRun('submitAnswer',[ps.sessionId,ps.participantId,qId,answer], res => {
+    if (!res.success && res.error!=='Already answered') {
+      showToast(res.error||'ส่งไม่ได้','error');
+      ps.hasAnswered=false;
+      document.querySelectorAll('.choice-big').forEach(b=>b.classList.remove('disabled'));
+      return;
+    }
+    const scored=['multiple_choice','true_false','checkbox'].includes(qType);
+    if (scored && res.isCorrect!==undefined) {
+      // highlight
+      document.querySelectorAll('.choice-big').forEach(b => {
+        const txt=b.querySelector('span:last-child')?.textContent?.trim()||'';
+        if(txt===answer||(Array.isArray(answer)&&answer.includes(txt))) b.classList.add(res.isCorrect?'correct':'wrong');
+      });
+      if(res.isCorrect) { spawnConfetti(25); playSfx('correct'); } else { playSfx('wrong'); }
+      setTimeout(()=>showAnsweredState(res.isCorrect, res.score||0), 1200);
+    } else {
+      setTimeout(()=>showAnsweredState(null,0), 400);
+    }
+  });
+}
+
+// ── SCORE SCREEN ──
+function showAnsweredState(isCorrect, score) {
+  ps.timer?.stop();
+  showScreen('score');
+  const el = document.getElementById('score-display');
+  if (isCorrect===null||isCorrect===undefined) {
+    el.innerHTML=`<div class="answered-icon">✅</div><div class="answered-title">ส่งคำตอบแล้ว!</div><div class="answered-sub">รอคำถามถัดไป...</div><div class="waiting-next-anim"><span></span><span></span><span></span></div>`;
+  } else if(isCorrect) {
+    el.innerHTML=`<div class="score-circle"><div><div class="score-number">+${score}</div><div class="score-label">คะแนน</div></div></div><div class="answered-title" style="color:var(--primary);font-size:24px">🎉 ถูกต้อง!</div><div class="answered-sub">ยอดเยี่ยม! รอคำถามถัดไป...</div><div class="waiting-next-anim"><span></span><span></span><span></span></div>`;
+  } else {
+    el.innerHTML=`<div class="answered-icon">😅</div><div class="answered-title" style="color:#ef4444">ไม่ถูกต้อง</div><div class="answered-sub">ไม่เป็นไร ยังมีโอกาสอีก!</div><div class="waiting-next-anim"><span></span><span></span><span></span></div>`;
+  }
+}
+
+function showTimeoutState() {
+  ps.timer?.stop();
+  showScreen('score');
+  const el = document.getElementById('score-display');
+  el.innerHTML=`<div class="answered-icon">⏰</div><div class="answered-title" style="color:#f59e0b">หมดเวลา!</div><div class="answered-sub">คุณตอบไม่ทันเวลา โปรดรอคำถามถัดไป</div><div class="waiting-next-anim"><span></span><span></span><span></span></div>`;
+}
+
+// ── ENDED ──
+function showEndedScreen() {
+  ps.poller?.stop(); ps.timer?.stop();
+  if (MusicPlayer) MusicPlayer.pause();
+  playSfx('tada');
+  showScreen('ended');
+  document.getElementById('ended-avatar').textContent = ps.avatar||'🎊';
+  spawnConfetti(60);
+  gasRun('getLeaderboard',[ps.sessionId], res => {
+    if(!res.success) return;
+    const me=res.data.find(p=>p.id===ps.participantId);
+    const el=document.getElementById('final-rank');
+    if(me) {
+      el.innerHTML=`<div class="score-circle" style="width:140px;height:140px;margin-bottom:20px"><div><div class="score-number">#${me.rank}</div><div class="score-label">${me.totalScore} pt</div></div></div><div style="font-size:18px;font-weight:800;color:#fff">${me.name}</div><div style="font-size:13px;color:var(--text-muted);margin-top:4px">ตอบถูก ${me.correctCount} ข้อ</div>`;
+    }
+  });
+}
+
+// ── CONFETTI ──
+function spawnConfetti(n) {
+  n=n||25;
+  const colors=['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#fff'];
+  for(let i=0;i<n;i++) {
+    setTimeout(()=>{
+      const el=document.createElement('div');
+      el.className='confetti-piece';
+      el.style.cssText=`left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*.4}s;border-radius:${Math.random()>.5?'50%':'2px'};`;
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),3000);
+    },i*35);
+  }
+}
+
+// ── UTILS ──
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  const panel = document.getElementById('font-settings-panel');
+  if (panel) panel.classList.remove('open');
+}
+function getTypeLabel(t) {
+  return {multiple_choice:'Multiple Choice',true_false:'True / False',checkbox:'Checkbox',short_answer:'Short Answer',poll:'Poll',open_text:'Open Text',word_cloud:'Word Cloud',rating:'Rating',q_and_a:'Q & A'}[t]||t;
+}
+</script>
+</body>
+</html>

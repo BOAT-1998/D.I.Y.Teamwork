@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>D.I.Y. Teamwork — Host Panel</title>
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+body { background:var(--bg-dark); min-height:100vh; padding:0; }
+
+/* HOST LAYOUT */
+.host-container { display:grid; grid-template-columns:320px 1fr; min-height:100vh; }
+
+/* LEFT PANEL */
+.host-left {
+  background:var(--bg-card); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; height:100vh; position:sticky; top:0; overflow-y:auto;
+}
+.host-header { padding:20px; border-bottom:1px solid var(--border); }
+.host-logo { font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; margin-bottom:4px; }
+.host-logo span { color:var(--primary); }
+.session-status { display:flex; align-items:center; gap:8px; font-size:13px; }
+
+/* Session Info Card */
+.session-card {
+  margin:16px; padding:20px; border-radius:var(--radius-lg);
+  background:linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05));
+  border:1px solid rgba(16,185,129,0.2);
+}
+.pin-display {
+  font-family:'Outfit',sans-serif; font-size:42px; font-weight:900;
+  color:var(--primary); letter-spacing:6px; text-align:center;
+  margin: 8px 0;
+}
+.pin-label { font-size:11px; color:var(--text-muted); text-align:center; text-transform:uppercase; letter-spacing:1px; }
+.join-url  { font-size:11px; color:var(--text-muted); text-align:center; margin-top:8px; word-break:break-all; }
+
+/* Participants */
+.participants-section { padding:0 16px 16px; flex:1; }
+.participants-header { display:flex; align-items:center; justify-content:space-between; padding:12px 0; }
+.participants-header h3 { font-size:14px; font-weight:700; }
+.participants-count { font-size:24px; font-weight:800; color:var(--primary); }
+.participant-list { display:flex; flex-direction:column; gap:6px; max-height:480px; overflow-y:auto; padding-right:4px; }
+.participant-chip {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:var(--radius);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border);
+  font-size:13px; animation: chipIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes chipIn { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
+.participant-avatar {
+  width:28px; height:28px; border-radius:8px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:14px;
+}
+
+/* Controls */
+.host-controls {
+  padding:16px; border-top:1px solid var(--border);
+  display:flex; flex-direction:column; gap:8px;
+}
+.control-btn-row { display:flex; gap:8px; }
+
+/* MAIN RIGHT PANEL */
+.host-right { padding:28px; overflow-y:auto; }
+
+/* Quiz Selector (before session) */
+.quiz-selector h2 { font-size:24px; font-weight:800; margin-bottom:4px; }
+.quiz-selector p  { color:var(--text-muted); margin-bottom:28px; }
+.quiz-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
+.qs-card {
+  background:var(--bg-card); border:2px solid var(--border);
+  border-radius:var(--radius-lg); padding:20px; cursor:pointer; transition:var(--transition);
+}
+.qs-card:hover { border-color:var(--primary); transform:translateY(-2px); box-shadow:var(--shadow-glow); }
+.qs-card.selected { border-color:var(--primary); background:rgba(16,185,129,0.08); }
+
+/* Live View */
+.live-view { display:none; }
+.live-view.show { display:block; animation:fadeInHost .4s ease; }
+@keyframes fadeInHost{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.question-display {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius-xl); padding:32px; margin-bottom:24px;
+}
+.q-progress {
+  display:flex; align-items:center; gap:12px; margin-bottom:20px;
+}
+.q-number-tag {
+  background:rgba(16,185,129,0.15); color:var(--primary);
+  padding:4px 14px; border-radius:20px; font-size:13px; font-weight:700;
+}
+.q-text-display {
+  font-size:24px; font-weight:700; line-height:1.4; margin-bottom:28px;
+}
+.q-options-display {
+  display:grid; grid-template-columns:1fr 1fr; gap:12px;
+}
+.q-opt-display {
+  padding:14px 18px; border-radius:var(--radius);
+  border:2px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04);
+  display:flex; align-items:center; gap:12px; font-size:15px;
+}
+.q-opt-display.correct-ans { border-color:var(--primary); background:rgba(16,185,129,0.12); }
+
+/* Live Stats */
+.live-stats-bar {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px;
+}
+.ls-card {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:16px; text-align:center;
+}
+.ls-value { font-size:32px; font-weight:800; }
+.ls-label { font-size:12px; color:var(--text-muted); }
+
+/* Answer Distribution */
+.answer-dist { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; }
+/* Answer Detail */
+.answer-detail { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; margin-top:16px; }
+.answer-group { margin-bottom:14px; }
+.answer-group:last-child { margin-bottom:0; }
+.answer-group-title { font-size:13px; font-weight:700; color:var(--text-secondary); margin-bottom:6px; display:flex; gap:8px; align-items:center; }
+.answer-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.answer-chip {
+  padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;
+  background:rgba(255,255,255,0.06); border:1px solid var(--border);
+}
+.answer-chip.muted { color:var(--text-muted); font-weight:500; }
+.answer-text-row {
+  display:flex; gap:8px; align-items:flex-start; padding:8px 0; border-bottom:1px dashed rgba(255,255,255,0.06);
+}
+.answer-text-row:last-child { border-bottom:none; }
+.answer-name { font-weight:700; color:var(--text-secondary); min-width:90px; }
+.answer-text { color:var(--text-primary); }
+
+/* Leaderboard panel */
+.lb-section { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; margin-top:20px; }
+
+/* Music Controls */
+.music-bar {
+  padding:12px 16px; border-top:1px solid var(--border);
+  display:flex; align-items:center; gap:12px;
+  background:rgba(255,255,255,0.02);
+}
+.music-name { flex:1; font-size:12px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vol-slider { width:80px; accent-color:var(--primary); }
+
+@media (max-width:768px) {
+  .host-container { grid-template-columns:1fr; }
+  .host-left { height:auto; position:static; }
+  .q-options-display, .q-opt-display { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="host-container">
+  <!-- ── LEFT PANEL ── -->
+  <div class="host-left">
+    <div class="host-header">
+      <div class="host-logo">D.I.Y.<span>TW</span> Host</div>
+      <div class="session-status">
+        <span class="live-dot" id="status-dot" style="display:none"></span>
+        <span id="status-text" style="color:var(--text-muted);font-size:13px">รอเริ่ม Session</span>
+      </div>
+    </div>
+
+    <!-- Session Info -->
+    <div id="session-card" class="session-card" style="display:none">
+      <div class="pin-label">JOIN WITH PIN</div>
+      <div class="pin-display" id="session-pin">—</div>
+      <div class="pin-label">หรือสแกน QR</div>
+      <div class="join-url" id="join-url"></div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" onclick="copyJoinLink()">📋 คัดลอกลิงก์</button>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:6px" onclick="openPresenter()">🖥️ เปิด Presenter</button>
+    </div>
+
+    <!-- Participants -->
+    <div class="participants-section">
+      <div class="participants-header">
+        <h3>👥 ผู้เข้าร่วม</h3>
+        <span class="participants-count" id="participant-count">0</span>
+      </div>
+      <div class="participant-list" id="participant-list">
+        <div style="text-align:center;color:var(--text-muted);font-size:13px;padding:20px">รอผู้เข้าร่วม...</div>
+      </div>
+    </div>
+
+    <!-- Music -->
+    <div class="music-bar" id="music-bar" style="display:none">
+      <span style="font-size:16px">🎵</span>
+      <span class="music-name" id="music-name">ยังไม่ได้เลือกเพลง</span>
+      <button class="btn btn-ghost btn-sm" onclick="toggleMusic()" id="btn-music">▶</button>
+      <input class="vol-slider" type="range" min="0" max="1" step="0.1" value="0.4" oninput="MusicPlayer.setVol(this.value)">
+    </div>
+
+    <!-- Controls -->
+    <div class="host-controls">
+      <div id="controls-waiting" style="display:none">
+        <button class="btn btn-primary" style="width:100%" onclick="startFirstQuestion()">
+          ▶ เริ่มคำถามแรก
+        </button>
+      </div>
+      <div id="controls-active" style="display:none">
+        <button id="btn-autoflow" class="btn btn-outline" style="width:100%;margin-bottom:12px;display:flex;justify-content:center;align-items:center;gap:8px" onclick="toggleAutoflow()">
+          <span style="font-size:18px">🚀</span> <span id="autoflow-text">Autoflow: ปิด</span>
+        </button>
+        <div class="control-btn-row">
+          <button class="btn btn-secondary" style="flex:1" onclick="toggleShowAnswer()">👁 เฉลย</button>
+          <button class="btn btn-blue" style="flex:1" onclick="goNext()" id="btn-next">ถัดไป →</button>
+        </div>
+        <div class="control-btn-row">
+          <button class="btn btn-secondary" style="flex:1" onclick="openPresenter()">🖥️ Presenter</button>
+          <button class="btn btn-danger" style="flex:1" onclick="confirmEndSession()">⏹ จบ</button>
+        </div>
+      </div>
+      <div id="controls-ended" style="display:none">
+        <div style="text-align:center;color:var(--text-muted);font-size:14px;margin-bottom:12px">Session จบแล้ว</div>
+        <button class="btn btn-primary" style="width:100%" onclick="resetHost()">+ Session ใหม่</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="host-right">
+
+    <!-- Quiz Selector -->
+    <div id="quiz-selector" class="quiz-selector">
+      <h2>เลือก Quiz</h2>
+      <p>เลือก Quiz ที่ต้องการ แล้วกด "เริ่ม Session"</p>
+      <div class="quiz-list" id="quiz-list-host">
+        <div class="empty-state"><div class="spinner spinner-sm"></div></div>
+      </div>
+    </div>
+
+    <!-- Selected Quiz Info (before start) -->
+    <div id="pre-start-area" style="display:none;margin-top:24px">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+          <div style="font-size:36px">🎯</div>
+          <div>
+            <div id="selected-quiz-title" style="font-size:20px;font-weight:800"></div>
+            <div id="selected-quiz-desc"  style="font-size:14px;color:var(--text-muted)"></div>
+          </div>
+        </div>
+        <div id="selected-quiz-stats" style="display:flex;gap:16px;margin-bottom:24px"></div>
+        <button class="btn btn-primary btn-lg" style="width:100%" onclick="startSession()">
+          🚀 เริ่ม Session เลย!
+        </button>
+      </div>
+    </div>
+
+    <!-- Live View -->
+    <div id="live-view" class="live-view">
+      <!-- Live Stats Bar -->
+      <div class="live-stats-bar">
+        <div class="ls-card" style="transition:all .3s">
+          <div class="ls-value" id="ls-answered" style="transition:all .3s">0</div>
+          <div class="ls-label">ตอบแล้ว</div>
+        </div>
+        <div class="ls-card" style="transition:all .3s">
+          <div class="ls-value" id="ls-total" style="transition:all .3s">0</div>
+          <div class="ls-label">ทั้งหมด</div>
+        </div>
+        <div class="ls-card" style="transition:all .3s">
+          <div class="ls-value" id="ls-accuracy" style="color:var(--primary);transition:all .3s">0%</div>
+          <div class="ls-label">ถูกต้อง</div>
+        </div>
+      </div>
+
+      <!-- Current Question Display -->
+      <div class="question-display">
+        <div class="q-progress">
+          <span class="q-number-tag" id="q-num-tag">ข้อ 1</span>
+          <div style="flex:1">
+            <div class="progress-bar"><div class="progress-fill" id="q-progress-fill" style="width:0%"></div></div>
+          </div>
+          <span style="font-size:13px;color:var(--text-muted)" id="q-progress-text">1/1</span>
+          <div id="host-timer-wrap" style="margin-left:8px"></div>
+        </div>
+        <!-- Timer Progress Bar -->
+        <div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px;margin-bottom:14px;overflow:hidden">
+          <div id="host-timer-bar" style="height:100%;width:100%;background:var(--primary);border-radius:2px;transition:width 1s linear,background .5s,box-shadow .5s;box-shadow:0 0 8px var(--primary)"></div>
+        </div>
+        <div class="q-text-display" id="q-text-display">—</div>
+        <div id="q-options-display" class="q-options-display"></div>
+      </div>
+
+      <!-- Answer Distribution -->
+      <div class="answer-dist">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h3 style="font-size:15px;font-weight:700">📊 การกระจายคำตอบ</h3>
+          <span class="live-dot"></span>
+        </div>
+        <div class="bar-chart" id="answer-dist-chart"></div>
+      </div>
+
+
+
+      <!-- Leaderboard -->
+      <div class="lb-section">
+        <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+          <h3 style="font-size:15px;font-weight:700">🏆 Leaderboard สด</h3>
+          <button class="btn btn-ghost btn-sm" onclick="openLeaderboardWindow()">ฉายจอ →</button>
+        </div>
+        <div id="live-leaderboard"></div>
+      </div>
+    </div>
+
+    <!-- Ended View -->
+    <div id="ended-view" style="display:none;text-align:center;padding:60px 0">
+      <div style="font-size:64px;margin-bottom:16px">🎉</div>
+      <h2 style="font-size:28px;font-weight:800;margin-bottom:8px">Session จบแล้ว!</h2>
+      <p style="color:var(--text-muted);margin-bottom:28px">ขอบคุณทุกคนที่เข้าร่วม</p>
+      <div id="final-leaderboard"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/scripts.js"></script>
+<script>
+const BASE_URL = window.location.origin;
+
+// ── STATE ──
+let state = {
+  sessionId:    null,
+  quizId:       null,
+  pin:          null,
+  status:       'idle',
+  currentQIdx:  0,
+  totalQ:       0,
+  questions:    [],
+  currentQuestion: null,
+  showAnswer:   false,
+  poller:       null,
+  resultPoller: null,
+  hostTimer:    null,   // countdown timer สำหรับ Host
+};
+
+// ── INIT ── รอ google.script.run พร้อมก่อน
+window.addEventListener('load', function() {
+  loadQuizList();
+  loadMusicSettings();
+});
+
+function loadQuizList() {
+  const list = document.getElementById('quiz-list-host');
+  list.innerHTML = '<div class="empty-state"><div class="spinner spinner-sm"></div></div>';
+
+  gasRun('getQuizList', null,
+    res => {
+      if (!res || !res.success || !res.data || !res.data.length) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">ยังไม่มี Quiz</div><div class="empty-desc">ไปสร้าง Quiz ใน Admin ก่อน</div></div>';
+        return;
+      }
+      list.innerHTML = res.data.map(q => `
+        <div class="qs-card" id="qcard-${q.id}" onclick="selectQuiz('${q.id}','${(q.title||'').replace(/'/g,"\'")}','${(q.description||'').replace(/'/g,"\'")}',${q.questionCount||0})">
+          <div style="font-size:28px;margin-bottom:10px">🎯</div>
+          <div style="font-size:16px;font-weight:700;margin-bottom:4px">${q.title||'Untitled'}</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">${q.description||''}</div>
+          <span class="badge badge-blue">${q.questionCount||0} คำถาม</span>
+          <span class="badge badge-gray" style="margin-left:6px">${q.category||''}</span>
+        </div>`).join('');
+    },
+    err => {
+      list.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">โหลดไม่ได้</div><div class="empty-desc">${err.message||err}</div><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="loadQuizList()">ลองใหม่</button></div>`;
+    }
+  );
+}
+
+function selectQuiz(id, title, desc, qCount) {
+  document.querySelectorAll('.qs-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('qcard-' + id)?.classList.add('selected');
+  state.quizId = id;
+  document.getElementById('selected-quiz-title').textContent = title;
+  document.getElementById('selected-quiz-desc').textContent  = desc;
+  document.getElementById('selected-quiz-stats').innerHTML = `
+    <span class="badge badge-blue">❓ ${qCount} คำถาม</span>`;
+  document.getElementById('pre-start-area').style.display = 'block';
+}
+
+function startSession() {
+  if (!state.quizId) { showToast('กรุณาเลือก Quiz ก่อน', 'error'); return; }
+  
+  // Unlock audio context synchronously inside the user's click event
+  MusicPlayer.play();
+  MusicPlayer.pause();
+  
+  showLoading('กำลังสร้าง Session...');
+  gasRun('startSession', [state.quizId, 'admin'], res => {
+    hideLoading();
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    state.sessionId = res.sessionId;
+    state.pin       = res.pin;
+    state.status    = 'waiting';
+
+    // แสดง PIN
+    document.getElementById('session-pin').textContent = res.pin;
+    document.getElementById('join-url').textContent = `${BASE_URL}/player?pin=${res.pin}`;
+    document.getElementById('session-card').style.display = 'block';
+    document.getElementById('status-dot').style.display   = 'flex';
+    document.getElementById('status-text').textContent    = '🟡 รอผู้เข้าร่วม';
+
+    // ซ่อน quiz selector
+    document.getElementById('quiz-selector').style.display  = 'none';
+    document.getElementById('pre-start-area').style.display = 'none';
+
+    document.getElementById('controls-waiting').style.display = 'block';
+    document.getElementById('controls-active').style.display  = 'none';
+
+    // เริ่ม poll participants
+    state.poller = new Poller(pollSession, 1000);
+    state.poller.start();
+
+    showToast(`Session เริ่มแล้ว! PIN: ${res.pin}`, 'success', 5000);
+    MusicPlayer.play();
+  });
+}
+
+function startFirstQuestion() {
+  if (!state.sessionId) { showToast('ยังไม่มี Session กรุณากด "เริ่ม Session" ก่อน','error'); return; }
+  showLoading('กำลังเริ่มคำถามข้อแรก...');
+  gasRun('nextQuestion', [state.sessionId], res => {
+    hideLoading();
+    if (!res.success) { showToast(res.error || 'ไม่สามารถเริ่มได้','error'); return; }
+    gasRun('getLiveSessionData', [state.sessionId, null], res2 => {
+      if (!res2.success || !res2.data) { showToast('โหลด session ไม่ได้','error'); return; }
+      const d = res2.data;
+      state.totalQ      = d.totalQuestions;
+      state.currentQIdx = d.currentQuestionIndex || 0;
+      updateLiveView(d);
+      
+      // Attempt to unlock audio again if needed, or replay
+      MusicPlayer.play();
+      
+      document.getElementById('live-view').classList.add('show');
+      document.getElementById('controls-waiting').style.display = 'none';
+      document.getElementById('controls-active').style.display  = 'block';
+      document.getElementById('status-text').textContent = '🟢 Live';
+      startHostCountdown(d.currentQuestion);
+      MusicPlayer.play();
+      // poll results ทุก 1 วิ (Realtime)
+      state.resultPoller = new Poller(() => pollResults(), 1000);
+      state.resultPoller.start();
+    });
+  });
+}
+
+function pollSession() {
+  if (!state.sessionId) return;
+  gasRun('getLiveSessionData', [state.sessionId, null], res => {
+    if (!res.success) return;
+    const d = res.data;
+    // อัปเดตผู้เข้าร่วม
+    renderParticipants(d);
+    document.getElementById('participant-count').textContent = d.participantCount;
+
+    if (d.status === 'ended') {
+      state.poller?.stop();
+      state.resultPoller?.stop();
+      showEndedView();
+    }
+  });
+}
+
+function pollResults() {
+  if (!state.sessionId) return;
+  const q = getCurrentQuestion();
+  if (!q) return;
+
+  gasRun('getQuestionResults', [state.sessionId, q.id], res => {
+    if (!res.success) return;
+    const d = res.data;
+    document.getElementById('ls-answered').textContent = d.answered;
+    document.getElementById('ls-total').textContent    = d.total;
+    document.getElementById('ls-accuracy').textContent = d.accuracy + '%';
+    renderAnswerDist(d.answerCounts, q.options || []);
+    
+    // Update inline choice votes
+    const opts = q.options || [];
+    opts.forEach((opt, i) => {
+      const el = document.getElementById(`host-opt-${i}`);
+      if (el) {
+        const count = d.answerCounts[opt.text] || 0;
+        const countEl = el.querySelector('.opt-vote-count');
+        if (countEl) countEl.textContent = count + ' คน';
+      }
+    });
+  });
+
+  // Leaderboard
+  gasRun('getLeaderboard', [state.sessionId], res => {
+    if (!res.success) return;
+    renderLiveLeaderboard(res.data.slice(0, 5));
+  });
+}
+
+function updateLiveView(data) {
+  const q = data.currentQuestion;
+  if (!q) return;
+  state.currentQIdx = data.currentQuestionIndex;
+  state.currentQuestion = q;
+
+  document.getElementById('q-num-tag').textContent = `ข้อ ${state.currentQIdx + 1}`;
+  document.getElementById('q-progress-text').textContent = `${state.currentQIdx + 1}/${data.totalQuestions}`;
+  const pct = ((state.currentQIdx + 1) / data.totalQuestions) * 100;
+  document.getElementById('q-progress-fill').style.width = pct + '%';
+  document.getElementById('q-text-display').textContent = q.text;
+
+  // Render options
+  const optsArea = document.getElementById('q-options-display');
+  const letters  = ['A','B','C','D','E','F'];
+  const letterCls= ['a','b','c','d','e','f'];
+  if (q.options && q.options.length) {
+    optsArea.innerHTML = q.options.map((opt, i) => `
+      <div class="q-opt-display" id="host-opt-${i}">
+        <span class="choice-letter ${letterCls[i]}">${letters[i]}</span>
+        <span style="flex:1">${opt.text}</span>
+        <span class="opt-vote-count" style="font-weight:700;font-size:16px;color:var(--text-muted)">0 คน</span>
+      </div>`).join('');
+  } else {
+    optsArea.innerHTML = `<div style="color:var(--text-muted);font-style:italic">ตอบแบบอิสระ</div>`;
+  }
+}
+
+function getCurrentQuestion() {
+  if (state.currentQuestion) return state.currentQuestion;
+  if (!state.questions) return null;
+  return state.questions[state.currentQIdx] || null;
+}
+
+function renderParticipants(data) {
+  // Update count
+  document.getElementById('participant-count').textContent = data.participantCount;
+  // Render list
+  gasRun('getParticipants', [state.sessionId], res => {
+    if (!res.success) return;
+    renderParticipantList(res.data || []);
+  });
+}
+
+function renderParticipantList(list) {
+  const el = document.getElementById('participant-list');
+  if (!list.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:20px">รอผู้เข้าร่วม...</div>';
+    return;
+  }
+  el.innerHTML = list.map(p => `
+    <div class="participant-chip">
+      <div class="participant-avatar">${p.avatar || '👤'}</div>
+      <div style="flex:1">
+        <div style="font-weight:700">${escapeHtml(p.name || '')}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(p.playerCode || '')}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderAnswerDist(answerCounts, options) {
+  const chart = document.getElementById('answer-dist-chart');
+  if (!answerCounts || Object.keys(answerCounts).length === 0) {
+    chart.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px">รอคำตอบ...</div>';
+    return;
+  }
+  const total  = Object.values(answerCounts).reduce((s, v) => s + v, 0);
+  const colors = ['#ef4444','#3b82f6','#f59e0b','#10b981','#8b5cf6','#ec4899'];
+  chart.innerHTML = Object.entries(answerCounts).map(([ans, cnt], i) => {
+    const pct = total ? Math.round(cnt / total * 100) : 0;
+    return `<div class="bar-item">
+      <span class="bar-label">${ans.length > 20 ? ans.substring(0,20)+'...' : ans}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${pct}%;background:${colors[i%colors.length]}">
+          <span class="bar-count">${cnt}</span>
+        </div>
+      </div>
+      <span style="font-size:12px;color:var(--text-muted);min-width:36px;text-align:right">${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
+function renderAnswerDetail(responses, q) {
+  const wrap = document.getElementById('answer-detail-list');
+  if (!wrap) return;
+  if (!responses.length) {
+    wrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:16px">ยังไม่มีคำตอบ</div>';
+    return;
+  }
+  const type = q?.type || '';
+  const opts = Array.isArray(q?.options) ? q.options.map(o => o.text) : [];
+
+  if (['multiple_choice','true_false','poll','rating'].includes(type)) {
+    const groups = {};
+    responses.forEach(r => {
+      const ans = (r.answer ?? '').toString();
+      if (!groups[ans]) groups[ans] = [];
+      groups[ans].push(r.name || 'Unknown');
+    });
+    const keys = opts.length ? opts : Object.keys(groups);
+    wrap.innerHTML = keys.map(k => {
+      const names = groups[k] || [];
+      const chips = names.length
+        ? names.map(n => `<span class="answer-chip">${escapeHtml(n)}</span>`).join('')
+        : `<span class="answer-chip muted">—</span>`;
+      return `<div class="answer-group">
+        <div class="answer-group-title">${escapeHtml(k || '—')}</div>
+        <div class="answer-chips">${chips}</div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  if (type === 'checkbox') {
+    const groups = {};
+    responses.forEach(r => {
+      const ans = parseAnswer(r.answer);
+      const arr = Array.isArray(ans) ? ans : [String(ans || '')];
+      arr.forEach(a => {
+        const key = String(a || '');
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(r.name || 'Unknown');
+      });
+    });
+    const keys = opts.length ? opts : Object.keys(groups);
+    wrap.innerHTML = keys.map(k => {
+      const names = groups[k] || [];
+      const chips = names.length
+        ? names.map(n => `<span class="answer-chip">${escapeHtml(n)}</span>`).join('')
+        : `<span class="answer-chip muted">—</span>`;
+      return `<div class="answer-group">
+        <div class="answer-group-title">${escapeHtml(k || '—')}</div>
+        <div class="answer-chips">${chips}</div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  wrap.innerHTML = responses.map(r => {
+    const ans = parseAnswer(r.answer);
+    const txt = Array.isArray(ans) ? ans.join(', ') : String(ans || '');
+    return `<div class="answer-text-row">
+      <div class="answer-name">${escapeHtml(r.name || 'Unknown')}</div>
+      <div class="answer-text">${escapeHtml(txt)}</div>
+    </div>`;
+  }).join('');
+}
+
+function parseAnswer(val) {
+  if (val === null || val === undefined) return '';
+  const s = String(val).trim();
+  if ((s.startsWith('[') && s.endsWith(']')) || (s.startsWith('{') && s.endsWith('}'))) {
+    try { return JSON.parse(s); } catch { return s; }
+  }
+  return s;
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, s => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[s]));
+}
+
+function renderLiveLeaderboard(players) {
+  const lb = document.getElementById('live-leaderboard');
+  if (!players.length) { lb.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px">ยังไม่มีคะแนน</div>'; return; }
+  lb.innerHTML = players.map((p, i) => `
+    <div class="leaderboard-item rank-${i < 3 ? i+1 : 'other'}">
+      <div class="rank-badge">${i===0?'🥇':i===1?'🥈':i===2?'🥉':p.rank}</div>
+      <div class="player-name">${p.name}</div>
+      <div class="player-score">${p.totalScore}</div>
+    </div>`).join('');
+}
+
+function toggleShowAnswer() {
+  if (state.showAnswer) return; // Prevent multiple triggers
+  state.showAnswer = true;
+  apiCall(`/api/sessions/${state.sessionId}/reveal`, 'POST').catch(()=>{});
+
+  document.querySelectorAll('.q-opt-display').forEach((el, i) => {
+    el.classList.remove('correct-ans');
+  });
+  if (state.showAnswer) {
+    // highlight correct - refetch full question
+    gasRun('getQuizDetail', [state.quizId], res => {
+      if (!res.success) return;
+      const q = res.data.questions[state.currentQIdx];
+      if (!q) return;
+      const opts  = q.options || [];
+      const items = document.querySelectorAll('.q-opt-display');
+      opts.forEach((opt, i) => {
+        if ((opt.is_correct === true || opt.is_correct === 'TRUE') && items[i]) {
+          items[i].classList.add('correct-ans');
+        }
+      });
+    });
+  }
+}
+
+function toggleAutoflow() {
+  state.autoflow = !state.autoflow;
+  const btn = document.getElementById('btn-autoflow');
+  const txt = document.getElementById('autoflow-text');
+  if (state.autoflow) {
+    btn.className = 'btn btn-primary';
+    txt.textContent = 'Autoflow: เปิด (ออโต้ 5 วิ)';
+  } else {
+    btn.className = 'btn btn-outline';
+    txt.textContent = 'Autoflow: ปิด';
+    if (state.autoflowIntv) {
+      clearInterval(state.autoflowIntv);
+      state.autoflowIntv = null;
+      document.getElementById('btn-next').textContent = 'ถัดไป →';
+    }
+  }
+}
+
+function goNext() {
+  if (state.autoflowIntv) {
+    clearInterval(state.autoflowIntv);
+    state.autoflowIntv = null;
+    document.getElementById('btn-next').textContent = 'ถัดไป →';
+  }
+  if (!state.sessionId) return;
+  state.hostTimer?.stop();
+  gasRun('nextQuestion', [state.sessionId], res => {
+    if (!res.success) { showToast(res.error, 'error'); return; }
+    state.currentQIdx = res.newIndex;
+    state.showAnswer  = false;
+    gasRun('getLiveSessionData', [state.sessionId, null], res2 => {
+      if (!res2.success || !res2.data) { showToast('โหลดไม่ได้','error'); return; }
+      if (!res2.data.currentQuestion) {
+        showToast('⚠️ คำถามหมดแล้ว! กด "จบ Session" ได้เลย', 'warning', 5000);
+        return;
+      }
+      updateLiveView(res2.data);
+      startHostCountdown(res2.data.currentQuestion);
+    });
+  });
+}
+
+function confirmEndSession() {
+  confirmDialog('จบ Session นี้?', endSession);
+}
+function endSession() {
+  gasRun('endSession', [state.sessionId], res => {
+    state.poller?.stop();
+    state.resultPoller?.stop();
+    if (res.success) {
+      state.status = 'ended';
+      showEndedView();
+      MusicPlayer.pause();
+    }
+  });
+}
+
+function showEndedView() {
+  document.getElementById('live-view').style.display   = 'none';
+  document.getElementById('ended-view').style.display  = 'block';
+  document.getElementById('controls-active').style.display = 'none';
+  document.getElementById('controls-ended').style.display  = 'block';
+  document.getElementById('status-dot').style.display   = 'none';
+  document.getElementById('status-text').textContent    = '⏹ จบแล้ว';
+
+  // Final leaderboard
+  gasRun('getLeaderboard', [state.sessionId], res => {
+    if (!res.success) return;
+    const lb = document.getElementById('final-leaderboard');
+    lb.innerHTML = res.data.slice(0, 10).map((p, i) => `
+      <div class="leaderboard-item rank-${i < 3 ? i+1 : 'other'}" style="max-width:400px;margin:0 auto 8px">
+        <div class="rank-badge">${i===0?'🥇':i===1?'🥈':i===2?'🥉':p.rank}</div>
+        <div class="player-name">${p.name}</div>
+        <div class="player-score">${p.totalScore}</div>
+      </div>`).join('');
+  });
+}
+
+function resetHost() {
+  state.hostTimer?.stop();
+  state = { sessionId:null, quizId:null, pin:null, status:'idle', currentQIdx:0, totalQ:0, questions:[], showAnswer:false, poller:null, resultPoller:null, hostTimer:null };
+  document.getElementById('session-card').style.display   = 'none';
+  document.getElementById('live-view').classList.remove('show');
+  document.getElementById('live-view').style.display      = '';
+  document.getElementById('ended-view').style.display     = 'none';
+  document.getElementById('quiz-selector').style.display  = 'block';
+  document.getElementById('pre-start-area').style.display = 'none';
+  document.getElementById('controls-waiting').style.display = 'none';
+  document.getElementById('controls-active').style.display  = 'none';
+  document.getElementById('controls-ended').style.display   = 'none';
+  document.getElementById('status-dot').style.display = 'none';
+  document.getElementById('status-text').textContent = 'รอเริ่ม Session';
+  loadQuizList();
+}
+
+// ── HOST COUNTDOWN TIMER ──
+function startHostCountdown(q) {
+  if (!q) return;
+  const tl = Number(q.time_limit) || 0;
+  if (state.hostTimer) state.hostTimer.stop();
+  const wrap = document.getElementById('host-timer-wrap');
+  if (!wrap) return;
+  if (tl <= 0) { wrap.innerHTML = ''; return; }
+
+  state.hostTimer = new CountdownTimer(tl,
+    (rem, tot) => {
+      renderRingTimer('host-timer-wrap', rem, tot);
+      // เปลี่ยนสี progress bar ตาม % เวลา
+      const pct = rem / tot;
+      const bar = document.getElementById('host-timer-bar');
+      if (bar) {
+        bar.style.width = (pct * 100) + '%';
+        bar.style.background = pct > .5 ? 'var(--primary)' : pct > .25 ? '#f59e0b' : '#ef4444';
+        bar.style.boxShadow  = `0 0 8px ${pct > .5 ? 'var(--primary)' : pct > .25 ? '#f59e0b' : '#ef4444'}`;
+      }
+    },
+    () => {
+      showToast('⏰ หมดเวลา! กด "ถัดไป" เพื่อไปข้อถัดไป', 'warning', 4000);
+      const bar = document.getElementById('host-timer-bar');
+      if (bar) { bar.style.width = '0%'; bar.style.background = '#ef4444'; }
+      
+      if (state.autoflow) {
+        if (!state.showAnswer) toggleShowAnswer();
+        let countdown = 5;
+        const btnNext = document.getElementById('btn-next');
+        btnNext.textContent = `ถัดไป (${countdown}s)...`;
+        state.autoflowIntv = setInterval(() => {
+          countdown--;
+          if (countdown <= 0) {
+            clearInterval(state.autoflowIntv);
+            state.autoflowIntv = null;
+            btnNext.textContent = 'ถัดไป →';
+            goNext();
+          } else {
+            btnNext.textContent = `ถัดไป (${countdown}s)...`;
+          }
+        }, 1000);
+      }
+    }
+  );
+  state.hostTimer.start();
+}
+
+// ── MUSIC ──
+function loadMusicSettings() {
+  gasRun('getSettings', null, res => {
+    if (!res.success) return;
+    const s = res.data;
+    const fileId  = s.music_file_id  || '';
+    let fileUrl = s.music_file_url || '';
+    if (!fileId && !fileUrl) fileUrl = '/uploads/music/bgm.mp3';
+
+    // ส่ง fileId ให้ MusicPlayer จัดการ URL เอง (รองรับ multiple fallback)
+    const initVal = fileId || fileUrl;
+    if (initVal) {
+      MusicPlayer.init(initVal);
+      document.getElementById('music-name').textContent = '🎵 เพลงประกอบ';
+      document.getElementById('music-bar').style.display = 'flex';
+    }
+  });
+}
+function toggleMusic() {
+  MusicPlayer.toggle();
+  setTimeout(() => {
+    document.getElementById('btn-music').textContent = MusicPlayer.paused ? '▶' : '⏸';
+  }, 100);
+}
+
+// ── LINKS ──
+function copyJoinLink() {
+  if (state.pin) copyText(`${BASE_URL}/player?pin=${state.pin}`, 'คัดลอก Join Link แล้ว!');
+}
+function openPresenter() {
+  if (state.sessionId) window.open(`/presenter?sessionId=${state.sessionId}`, '_blank', 'width=1280,height=720');
+}
+function openLeaderboardWindow() {
+  if (state.sessionId) window.open(`/presenter?sessionId=${state.sessionId}&view=leaderboard`, '_blank', 'width=1280,height=720');
+}
+</script>
+</body>
+</html>

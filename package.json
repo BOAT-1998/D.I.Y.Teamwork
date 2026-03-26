@@ -1,0 +1,19 @@
+{
+  "name": "diy-teamwork-server",
+  "version": "1.0.0",
+  "description": "D.I.Y. Teamwork — Local Web Server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.6.0",
+    "cors": "^2.8.6",
+    "express": "^4.22.1",
+    "localtunnel": "^2.0.2",
+    "multer": "^2.1.1",
+    "sql.js": "^1.14.1",
+    "uuid": "^9.0.1"
+  }
+}

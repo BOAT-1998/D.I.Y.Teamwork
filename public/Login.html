@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D.I.Y. Teamwork — Login</title>
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+/* ── LOGIN PAGE STYLES ── */
+body { background: var(--bg-dark); min-height: 100vh; display:flex; flex-direction:column; }
+
+.login-bg {
+  position:fixed; inset:0; z-index:0;
+  background: radial-gradient(ellipse at 20% 50%, rgba(16,185,129,0.15) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.12) 0%, transparent 50%),
+              radial-gradient(ellipse at 60% 80%, rgba(139,92,246,0.10) 0%, transparent 50%),
+              #0a0f1e;
+}
+.login-particles {
+  position:fixed; inset:0; z-index:0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: bgFloat 20s linear infinite;
+}
+@keyframes bgFloat { 0%{transform:translate(0,0)} 100%{transform:translate(40px,40px)} }
+
+.login-wrap {
+  position:relative; z-index:1;
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding: 24px;
+}
+
+.login-container {
+  width:100%; max-width:960px;
+  display:grid; grid-template-columns:1fr 1fr; gap:0;
+  background: rgba(15,23,42,0.85);
+  border-radius: 24px;
+  overflow:hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+  backdrop-filter: blur(20px);
+}
+
+/* ── LEFT PANEL ── */
+.login-left {
+  background: linear-gradient(135deg, #10b981 0%, #059669 40%, #0d9488 100%);
+  padding: 60px 48px;
+  display:flex; flex-direction:column; justify-content:center;
+  position:relative; overflow:hidden;
+}
+.login-left::before {
+  content:'';
+  position:absolute; top:-60px; right:-60px;
+  width:240px; height:240px;
+  background: rgba(255,255,255,0.08);
+  border-radius:50%;
+}
+.login-left::after {
+  content:'';
+  position:absolute; bottom:-80px; left:-40px;
+  width:300px; height:300px;
+  background: rgba(255,255,255,0.05);
+  border-radius:50%;
+}
+.brand-logo {
+  font-family: 'Outfit', sans-serif;
+  font-size: 48px; font-weight:800;
+  color:#fff; line-height:1;
+  margin-bottom:8px;
+  position:relative; z-index:1;
+}
+.brand-logo span { color: rgba(255,255,255,0.5); font-weight:300; }
+.brand-tagline {
+  font-size:14px; color:rgba(255,255,255,0.75);
+  margin-bottom:48px; font-weight:400;
+  position:relative; z-index:1;
+}
+.feature-list { list-style:none; position:relative; z-index:1; }
+.feature-list li {
+  display:flex; align-items:center; gap:12px;
+  color:rgba(255,255,255,0.85); font-size:14px;
+  padding: 10px 0; border-bottom:1px solid rgba(255,255,255,0.1);
+}
+.feature-list li:last-child { border-bottom:none; }
+.feature-list li .icon { font-size:20px; }
+
+/* ── RIGHT PANEL ── */
+.login-right {
+  padding: 60px 48px;
+  display:flex; flex-direction:column; justify-content:center;
+}
+.login-right h2 {
+  font-family:'Outfit',sans-serif;
+  font-size:28px; font-weight:700;
+  color:#f1f5f9; margin-bottom:8px;
+}
+.login-right p.subtitle { color:var(--text-muted); font-size:14px; margin-bottom:36px; }
+
+/* Role Selector */
+.role-selector {
+  display:grid; grid-template-columns:1fr 1fr; gap:12px;
+  margin-bottom:28px;
+}
+.role-btn {
+  padding:16px 12px; border-radius:12px;
+  border: 2px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color:var(--text-muted); cursor:pointer;
+  text-align:center; transition:all 0.2s;
+}
+.role-btn:hover { border-color:var(--primary); background:rgba(16,185,129,0.08); color:#f1f5f9; }
+.role-btn.active { border-color:var(--primary); background:rgba(16,185,129,0.15); color:var(--primary); }
+.role-btn .role-icon { font-size:24px; display:block; margin-bottom:6px; }
+.role-btn .role-name { font-size:13px; font-weight:600; display:block; }
+
+/* Join by PIN area */
+.pin-section { margin-bottom:24px; }
+.pin-input-group { display:flex; gap:8px; }
+.pin-input {
+  flex:1; font-family:'Outfit',sans-serif;
+  font-size:28px; font-weight:700; letter-spacing:8px;
+  text-align:center; padding:16px;
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius:12px; color:#f1f5f9;
+  outline:none; transition:all 0.2s;
+}
+.pin-input:focus { border-color:var(--primary); background:rgba(16,185,129,0.05); }
+.pin-input::placeholder { letter-spacing:2px; font-size:16px; font-weight:400; color:var(--text-muted); }
+
+.name-input {
+  width:100%; padding:14px 16px;
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius:12px; color:#f1f5f9; font-size:15px;
+  outline:none; transition:all 0.2s; margin-bottom:16px;
+  font-family:'Outfit',sans-serif;
+}
+.name-input:focus { border-color:var(--primary); background:rgba(16,185,129,0.05); }
+
+.btn-join-main {
+  width:100%; padding:16px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border:none; border-radius:12px;
+  color:#fff; font-size:16px; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+  font-family:'Outfit',sans-serif;
+  letter-spacing:0.5px;
+}
+.btn-join-main:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(16,185,129,0.4); }
+.btn-join-main:active { transform:translateY(0); }
+
+.divider {
+  display:flex; align-items:center; gap:12px;
+  color:var(--text-muted); font-size:12px; margin:20px 0;
+}
+.divider::before, .divider::after {
+  content:''; flex:1; height:1px; background:rgba(255,255,255,0.08);
+}
+
+.btn-admin-link {
+  width:100%; padding:13px;
+  background:transparent; border:2px solid rgba(255,255,255,0.1);
+  border-radius:12px; color:var(--text-muted); font-size:14px;
+  cursor:pointer; transition:all 0.2s; font-family:'Outfit',sans-serif;
+}
+.btn-admin-link:hover { border-color:rgba(255,255,255,0.3); color:#f1f5f9; }
+
+/* Admin Login Modal */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.7); z-index:100;
+  align-items:center; justify-content:center;
+  backdrop-filter:blur(8px);
+}
+.modal-overlay.show { display:flex; }
+.modal-box {
+  background:#0f172a; border:1px solid rgba(255,255,255,0.1);
+  border-radius:20px; padding:36px; width:360px;
+  box-shadow:0 40px 80px rgba(0,0,0,0.6);
+  animation: modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes modalIn { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
+.modal-box h3 { font-family:'Outfit',sans-serif; font-size:20px; color:#f1f5f9; margin-bottom:20px; }
+.modal-input {
+  width:100%; padding:12px 16px;
+  background:rgba(255,255,255,0.05); border:2px solid rgba(255,255,255,0.1);
+  border-radius:10px; color:#f1f5f9; font-size:15px;
+  outline:none; margin-bottom:12px; font-family:'Outfit',sans-serif;
+  box-sizing:border-box; transition:all 0.2s;
+}
+.modal-input:focus { border-color:var(--primary); }
+.modal-actions { display:flex; gap:10px; margin-top:8px; }
+.btn-modal-cancel {
+  flex:1; padding:12px;
+  background:transparent; border:2px solid rgba(255,255,255,0.1);
+  border-radius:10px; color:var(--text-muted); cursor:pointer;
+  font-family:'Outfit',sans-serif; transition:all 0.2s;
+}
+.btn-modal-cancel:hover { border-color:rgba(255,255,255,0.3); color:#f1f5f9; }
+.btn-modal-ok {
+  flex:2; padding:12px;
+  background:linear-gradient(135deg, #10b981, #059669);
+  border:none; border-radius:10px; color:#fff;
+  font-weight:700; cursor:pointer; font-family:'Outfit',sans-serif;
+  transition:all 0.2s;
+}
+.btn-modal-ok:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(16,185,129,0.4); }
+
+.error-msg { color:#f87171; font-size:13px; margin-bottom:10px; display:none; }
+
+@media (max-width:640px) {
+  .login-container { grid-template-columns:1fr; }
+  .login-left { display:none; }
+  .login-right { padding:36px 24px; }
+}
+</style>
+</head>
+<body>
+<div class="login-bg"></div>
+<div class="login-particles"></div>
+
+<div class="login-wrap">
+  <div class="login-container">
+    <!-- LEFT -->
+    <div class="login-left">
+      <div class="brand-logo">D.I.Y.<span>Teamwork</span></div>
+      <p class="brand-tagline">Interactive Quiz & Live Poll Platform</p>
+      <ul class="feature-list">
+        <li><span class="icon">🎯</span> Real-time Quiz & Poll</li>
+        <li><span class="icon">🏆</span> Live Leaderboard</li>
+        <li><span class="icon">☁️</span> Word Cloud & Q&A</li>
+        <li><span class="icon">📊</span> Analytics Dashboard</li>
+        <li><span class="icon">🎵</span> Background Music</li>
+        <li><span class="icon">📱</span> Mobile Friendly</li>
+      </ul>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="login-right">
+      <h2>ยินดีต้อนรับ 👋</h2>
+      <p class="subtitle">เลือกบทบาทของคุณเพื่อเริ่มต้น</p>
+
+      <!-- Role Selector -->
+      <div class="role-selector">
+        <button class="role-btn active" data-role="player" onclick="selectRole('player')">
+          <span class="role-icon">🎮</span>
+          <span class="role-name">ผู้เข้าร่วม</span>
+        </button>
+        <button class="role-btn" data-role="host" onclick="selectRole('host')">
+          <span class="role-icon">🎤</span>
+          <span class="role-name">Host</span>
+        </button>
+      </div>
+
+      <!-- Player: Join by PIN -->
+      <div id="section-player">
+        <div class="pin-section">
+          <input class="pin-input" id="pinInput" type="text" inputmode="numeric"
+            maxlength="6" placeholder="_ _ _ _ _ _" oninput="formatPIN(this)">
+        </div>
+        <input class="name-input" id="nameInput" type="text" placeholder="ชื่อของคุณ..." maxlength="30">
+        <button class="btn-join-main" onclick="joinByPIN()">
+          เข้าร่วม Session →
+        </button>
+        <p id="player-error" class="error-msg"></p>
+      </div>
+
+      <!-- Host: Go to Host Panel -->
+      <div id="section-host" style="display:none">
+        <input class="name-input" id="hostNameInput" type="text" placeholder="ชื่อ Host / ครู / วิทยากร..." maxlength="30">
+        <button class="btn-join-main" onclick="goToHost()" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
+          เปิดหน้า Host Panel →
+        </button>
+        <p id="host-error" class="error-msg"></p>
+      </div>
+
+      <div class="divider">หรือ</div>
+      <button class="btn-admin-link" onclick="showAdminModal()">
+        🔐 เข้าสู่ระบบ Admin
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Modal -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal-box">
+    <h3>🔐 Admin Login</h3>
+    <input class="modal-input" id="adminUser" type="text" placeholder="Username" value="admin">
+    <input class="modal-input" id="adminPass" type="password" placeholder="Password">
+    <p id="admin-error" class="error-msg"></p>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeAdminModal()">ยกเลิก</button>
+      <button class="btn-modal-ok" onclick="doAdminLogin()">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/scripts.js"></script>
+<script>
+
+function selectRole(role) {
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-role="${role}"]`).classList.add('active');
+  document.getElementById('section-player').style.display = role === 'player' ? 'block' : 'none';
+  document.getElementById('section-host').style.display   = role === 'host'   ? 'block' : 'none';
+}
+
+function formatPIN(el) {
+  el.value = el.value.replace(/\D/g, '').slice(0, 6);
+}
+
+function joinByPIN() {
+  const pin  = document.getElementById('pinInput').value.trim();
+  const name = document.getElementById('nameInput').value.trim();
+  const err  = document.getElementById('player-error');
+
+  if (pin.length !== 6) { showError(err, 'กรุณากรอก PIN 6 หลัก'); return; }
+  if (!name)             { showError(err, 'กรุณากรอกชื่อของคุณ');  return; }
+
+  // บันทึกชื่อ + ไปหน้า Player
+  sessionStorage.setItem('playerName', name);
+  window.location.href = `/player?pin=${pin}&name=${encodeURIComponent(name)}`;
+}
+
+function goToHost() {
+  const name = document.getElementById('hostNameInput').value.trim();
+  const err  = document.getElementById('host-error');
+  if (!name) { showError(err, 'กรุณากรอกชื่อ Host'); return; }
+  sessionStorage.setItem('hostName', name);
+  window.location.href = `/host`;
+}
+
+function showAdminModal() { document.getElementById('adminModal').classList.add('show'); }
+function closeAdminModal() { document.getElementById('adminModal').classList.remove('show'); }
+
+  async function doAdminLogin() {
+    const pass = document.getElementById('adminPass').value;
+    const err  = document.getElementById('admin-error');
+    if (!pass) { showError(err, 'กรุณากรอก Password'); return; }
+
+    try {
+      const res = await apiCall('/api/auth/admin-login', 'POST', { pass });
+      if (res.success) {
+        sessionStorage.setItem('adminAuth', 'true');
+        window.location.href = `/admin`;
+      } else {
+        showError(err, res.error || 'Password ไม่ถูกต้อง');
+      }
+    } catch (e) {
+      showError(err, e.message);
+    }
+  }
+
+function showError(el, msg) {
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (document.getElementById('adminModal').classList.contains('show')) doAdminLogin();
+    else if (document.getElementById('section-player').style.display !== 'none') joinByPIN();
+    else goToHost();
+  }
+});
+</script>
+</body>
+</html>

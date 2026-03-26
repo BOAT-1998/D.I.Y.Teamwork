@@ -1,0 +1,287 @@
+<script>
+// ============================================================
+// _scripts.html — Shared JavaScript Utilities
+// ============================================================
+
+/* ── TOAST NOTIFICATIONS ── */
+(function() {
+  // สร้าง container สำหรับ toast
+  const container = document.createElement('div');
+  container.id = 'toast-container';
+  document.body.appendChild(container);
+
+  window.showToast = function(msg, type = 'info', duration = 3500) {
+    const icons = { success:'✅', error:'❌', info:'ℹ️', warning:'⚠️' };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span class="toast-icon">${icons[type]||'💬'}</span><span class="toast-msg">${msg}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.style.animation = 'toastOut 0.3s ease forwards';
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
+  };
+})();
+
+/* ── LOADING OVERLAY ── */
+window.showLoading = function(text = 'กำลังโหลด...') {
+  let el = document.getElementById('loading-overlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'loading-overlay';
+    el.className = 'loading-overlay';
+    el.innerHTML = `<div class="spinner"></div><div class="loading-text">${text}</div>`;
+    document.body.appendChild(el);
+  } else {
+    el.querySelector('.loading-text').textContent = text;
+    el.style.display = 'flex';
+  }
+};
+window.hideLoading = function() {
+  const el = document.getElementById('loading-overlay');
+  if (el) el.style.display = 'none';
+};
+
+/* ── GAS RUNNER (wrapper around google.script.run) ── */
+window.gasRun = function(fnName, args, onSuccess, onError) {
+  // Guard: google.script.run อาจยังไม่พร้อม (เช่น ใน local preview)
+  if (typeof google === 'undefined' || !google.script || !google.script.run) {
+    console.warn('gasRun: google.script.run ยังไม่พร้อม fn=' + fnName);
+    if (typeof onError === 'function') onError({ message: 'google.script.run ไม่พร้อม' });
+    else showToast('ระบบยังไม่พร้อม กรุณารอสักครู่', 'warning');
+    return;
+  }
+  // Guard: ตรวจว่า function นั้นมีอยู่จริงใน server
+  if (typeof google.script.run[fnName] !== 'function') {
+    console.error('gasRun: function not found on server:', fnName);
+    if (typeof onError === 'function') onError({ message: 'ไม่พบฟังก์ชัน: ' + fnName });
+    else showToast('ไม่พบฟังก์ชัน: ' + fnName, 'error');
+    return;
+  }
+
+  const runner = google.script.run
+    .withSuccessHandler(result => {
+      if (typeof onSuccess === 'function') onSuccess(result);
+    })
+    .withFailureHandler(err => {
+      console.error('gasRun[' + fnName + '] error:', err);
+      if (typeof onError === 'function') onError(err);
+      else showToast(err.message || 'เกิดข้อผิดพลาด', 'error');
+    });
+
+  try {
+    if (Array.isArray(args)) runner[fnName](...args);
+    else if (args !== null && args !== undefined) runner[fnName](args);
+    else runner[fnName]();
+  } catch(e) {
+    console.error('gasRun call error:', e);
+    if (typeof onError === 'function') onError(e);
+    else showToast(e.message || 'เรียกฟังก์ชันไม่ได้', 'error');
+  }
+};
+
+/* ── CONFIRM DIALOG ── */
+window.confirmDialog = function(msg, onConfirm) {
+  const el = document.createElement('div');
+  el.className = 'modal-backdrop open';
+  el.innerHTML = `
+    <div class="modal-panel" style="max-width:380px;text-align:center">
+      <div style="font-size:40px;margin-bottom:16px">⚠️</div>
+      <p style="font-size:16px;font-weight:600;margin-bottom:8px;color:var(--text-primary)">${msg}</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:24px">การกระทำนี้ไม่สามารถยกเลิกได้</p>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" style="flex:1" onclick="this.closest('.modal-backdrop').remove()">ยกเลิก</button>
+        <button class="btn btn-danger" style="flex:1" id="confirm-ok">ยืนยัน</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  el.querySelector('#confirm-ok').onclick = () => { el.remove(); onConfirm(); };
+};
+
+/* ── FEEDBACK OVERLAY (correct/wrong) ── */
+window.showFeedback = function(isCorrect, score) {
+  const el = document.createElement('div');
+  el.className = 'feedback-overlay';
+  el.innerHTML = `
+    <div class="feedback-box ${isCorrect ? 'correct' : 'wrong'}">
+      <div>${isCorrect ? '🎉 ถูกต้อง!' : '😅 ไม่ถูกต้อง'}</div>
+      ${isCorrect ? `<div style="font-size:20px;margin-top:8px">+${score} คะแนน</div>` : ''}
+    </div>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2400);
+};
+
+/* ── COUNTDOWN TIMER ── */
+window.CountdownTimer = class {
+  constructor(totalSeconds, onTick, onComplete) {
+    this.total = totalSeconds;
+    this.remaining = totalSeconds;
+    this.onTick = onTick;
+    this.onComplete = onComplete;
+    this.interval = null;
+  }
+  start() {
+    this.interval = setInterval(() => {
+      this.remaining--;
+      if (this.onTick) this.onTick(this.remaining, this.total);
+      if (this.remaining <= 0) {
+        this.stop();
+        if (this.onComplete) this.onComplete();
+      }
+    }, 1000);
+  }
+  stop() { clearInterval(this.interval); }
+  getPercent() { return Math.max(0, (this.remaining / this.total) * 100); }
+};
+
+/* ── POLL ── */
+window.Poller = class {
+  constructor(fn, interval = 3000) {
+    this.fn = fn;
+    this.interval = interval;
+    this.timer = null;
+    this.active = false;
+  }
+  start() {
+    this.active = true;
+    this.fn(); // เรียกทันที
+    this.timer = setInterval(() => { if (this.active) this.fn(); }, this.interval);
+  }
+  stop() { this.active = false; clearInterval(this.timer); }
+};
+
+/* ── NUMBER FORMAT ── */
+window.formatNumber = n => new Intl.NumberFormat('th-TH').format(n);
+window.formatPercent = (n, total) => total ? Math.round(n / total * 100) : 0;
+
+/* ── SVG RING TIMER ── */
+window.renderRingTimer = function(containerId, remaining, total) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const size   = 100;
+  const r      = 42;
+  const circ   = 2 * Math.PI * r;
+  const pct    = Math.max(0, remaining / total);
+  const dash   = pct * circ;
+  const urgent = remaining <= 5;
+  const color  = urgent ? '#ef4444' : remaining <= 10 ? '#f59e0b' : '#10b981';
+
+  container.innerHTML = `
+    <div class="timer-ring" style="width:${size}px;height:${size}px">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+        <circle cx="50" cy="50" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+        <circle cx="50" cy="50" r="${r}" fill="none" stroke="${color}" stroke-width="8"
+          stroke-dasharray="${dash} ${circ}" stroke-linecap="round"
+          style="transition:stroke-dasharray 0.9s ease,stroke 0.3s"/>
+      </svg>
+      <span class="timer-text${urgent?' urgent':''}" style="color:${color}">${remaining}</span>
+    </div>`;
+};
+
+/* ── WORD CLOUD RENDER ── */
+window.renderWordCloud = function(containerId, wordsData) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const colors = ['#10b981','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#ef4444'];
+  const maxCount = Math.max(...wordsData.map(w => w.count || 1), 1);
+
+  container.innerHTML = '<div class="word-cloud"></div>';
+  const cloud = container.querySelector('.word-cloud');
+
+  wordsData.forEach((w, i) => {
+    const ratio  = (w.count || 1) / maxCount;
+    const size   = Math.round(12 + ratio * 36);
+    const color  = colors[i % colors.length];
+    const tag    = document.createElement('span');
+    tag.className = 'word-tag';
+    tag.textContent = w.text;
+    tag.style.cssText = `font-size:${size}px;color:#fff;background:${color}20;border:1px solid ${color}40;animation-delay:${i*0.05}s`;
+    cloud.appendChild(tag);
+  });
+};
+
+/* ── MUSIC PLAYER ──
+   Google Drive block Audio src โดยตรง → ใช้ <audio> element + หลาย URL format
+   Priority: preview URL → uc?export=download (fallback)
+── */
+window.MusicPlayer = {
+  audio:  null,
+  fileId: null,
+  _el:    null,   // <audio> DOM element ที่ append ใน body
+
+  // init ด้วย fileId หรือ full URL
+  init(urlOrId) {
+    this.destroy();
+    if (!urlOrId) return;
+
+    // แยก fileId จาก URL ถ้าเป็น URL
+    let fileId = urlOrId;
+    const m = urlOrId.match(/[?&]id=([^&]+)/) || urlOrId.match(/\/d\/([^/]+)/);
+    if (m) fileId = m[1];
+    // ถ้าเป็น URL ที่ไม่ใช่ drive (เช่น CDN ตรงๆ) ใช้ตรง
+    const isDriveId = !urlOrId.includes('http') || urlOrId.includes('drive.google') || urlOrId.includes('uc?');
+    this.fileId = isDriveId ? fileId : null;
+
+    const el = document.createElement('audio');
+    el.loop   = true;
+    el.volume = 0.4;
+    el.style.display = 'none';
+    el.setAttribute('crossorigin', 'anonymous');
+
+    if (this.fileId) {
+      // Google Drive: ใช้ preview URL ซึ่ง CORS ผ่าน iframe แต่ Audio() อาจโดน block
+      // วิธีที่ดีที่สุดคือ export=view + stream endpoint
+      const urls = [
+        `https://drive.google.com/uc?export=view&id=${this.fileId}`,
+        `https://drive.google.com/uc?export=download&id=${this.fileId}`,
+        `https://lh3.googleusercontent.com/d/${this.fileId}`
+      ];
+      // ลอง source แต่ละอัน
+      urls.forEach(u => {
+        const src = document.createElement('source');
+        src.src = u;
+        el.appendChild(src);
+      });
+    } else {
+      el.src = urlOrId;
+    }
+
+    el.onerror = () => {
+      console.warn('MusicPlayer: audio load error, fileId=', this.fileId);
+      if (typeof showToast === 'function') showToast('⚠️ ไม่สามารถเล่นได้ (Google Drive อาจจำกัด)', 'warning');
+    };
+
+    document.body.appendChild(el);
+    this._el  = el;
+    this.audio = el;
+  },
+
+  play() {
+    if (!this._el) return;
+    const p = this._el.play();
+    if (p && p.catch) p.catch(err => {
+      console.warn('MusicPlayer play error:', err.message);
+      if (err.name === 'NotAllowedError') {
+        // Autoplay blocked — รอ user interaction ครั้งถัดไป
+        const resume = () => { this._el && this._el.play().catch(()=>{}); document.removeEventListener('click', resume); };
+        document.addEventListener('click', resume, { once: true });
+      }
+    });
+  },
+
+  pause()   { this._el && this._el.pause(); },
+  toggle()  { if (!this._el) return; this._el.paused ? this.play() : this.pause(); },
+  setVol(v) { if (this._el) this._el.volume = Math.max(0, Math.min(1, v)); },
+  get paused() { return !this._el || this._el.paused; },
+
+  destroy() {
+    if (this._el) { this._el.pause(); this._el.remove(); this._el = null; }
+    this.audio = null; this.fileId = null;
+  }
+};
+
+/* ── COPY TO CLIPBOARD ── */
+window.copyText = function(text, label = 'คัดลอกแล้ว!') {
+  navigator.clipboard.writeText(text).then(() => showToast(label, 'success'));
+};
+</script>

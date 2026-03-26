@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D.I.Y. Teamwork — Presenter</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    /* ── PRESENTER-SPECIFIC STYLES ───────────────────────────── */
+    :root {
+      --presenter-bg: #05090f;
+      --card-glow: 0 0 40px rgba(16,185,129,0.18);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--presenter-bg);
+      color: #fff;
+      font-family: 'Outfit', 'Sarabun', sans-serif;
+      min-height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── SCREENS ─────────────────────────────────────────────── */
+    .screen { display: none; width: 100vw; height: 100vh; }
+    .screen.active { display: flex; flex-direction: column; }
+
+    /* ── WAITING SCREEN ──────────────────────────────────────── */
+    #screen-waiting {
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse at 50% 40%, #0d2a1a 0%, #05090f 70%);
+      position: relative;
+      overflow: hidden;
+    }
+    #screen-waiting::before {
+      content: '';
+      position: absolute;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%);
+      border-radius: 50%;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      animation: pulse-bg 3s ease-in-out infinite;
+    }
+    @keyframes pulse-bg {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+      50% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+    }
+
+    .waiting-inner {
+      text-align: center;
+      z-index: 2;
+      position: relative;
+    }
+    .waiting-logo {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .waiting-title {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 20px;
+      text-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    }
+    .pin-display-box {
+      background: rgba(16,185,129,0.12);
+      border: 3px solid var(--primary);
+      border-radius: 28px;
+      padding: 32px 64px;
+      margin: 24px auto;
+      display: inline-block;
+      box-shadow: var(--card-glow);
+    }
+    .pin-label {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      margin-bottom: 8px;
+    }
+    .pin-code {
+      font-size: clamp(4rem, 10vw, 7rem);
+      font-weight: 900;
+      color: var(--primary);
+      letter-spacing: 20px;
+      line-height: 1;
+      text-shadow: 0 0 40px rgba(16,185,129,0.4);
+    }
+    .join-url {
+      font-size: 1.2rem;
+      color: rgba(255,255,255,0.5);
+      margin-top: 16px;
+    }
+    .join-url span { color: rgba(255,255,255,0.85); font-weight: 600; }
+
+    .participant-ticker {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 32px;
+      justify-content: center;
+    }
+    .ticker-count {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .ticker-label {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.6);
+    }
+    .participant-avatars {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      max-width: 900px;
+      margin: 16px auto 0;
+    }
+    .avatar-chip {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.85);
+      animation: chip-in 0.3s ease;
+    }
+    @keyframes chip-in {
+      from { opacity: 0; transform: scale(0.7); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* ── QUESTION SCREEN ─────────────────────────────────────── */
+    #screen-question {
+      background: linear-gradient(160deg, #07130d 0%, #05090f 100%);
+      padding: 0;
+    }
+
+    /* Top bar */
+    .q-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 40px;
+      background: rgba(0,0,0,0.3);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+    .q-progress-info {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.5);
+      font-weight: 600;
+    }
+    .q-progress-info strong { color: var(--primary); font-size: 1.3rem; }
+    .q-type-badge {
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .q-participants-live {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.5);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .live-dot-presenter {
+      width: 10px; height: 10px;
+      background: var(--primary);
+      border-radius: 50%;
+      animation: blink 1.2s infinite;
+      box-shadow: 0 0 8px var(--primary);
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* Progress bar */
+    .q-progress-bar-wrap {
+      height: 5px;
+      background: rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .q-progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      transition: width 1s linear;
+      box-shadow: 0 0 12px var(--primary);
+    }
+
+    /* Main content area */
+    .q-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 60px;
+      gap: 28px;
+      overflow: hidden;
+    }
+
+    /* Timer ring */
+    .timer-ring-presenter {
+      flex-shrink: 0;
+    }
+    .timer-ring-presenter svg { filter: drop-shadow(0 0 16px rgba(16,185,129,0.4)); }
+    .timer-text-presenter {
+      font-size: 1.6rem;
+      font-weight: 900;
+      fill: #fff;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    /* Question card */
+    .q-card-presenter {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 28px;
+      padding: 36px 48px;
+      max-width: 1100px;
+      width: 100%;
+      text-align: center;
+      box-shadow: var(--card-glow);
+    }
+    .q-image-presenter {
+      max-height: 200px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+      object-fit: cover;
+      max-width: 100%;
+    }
+    .q-text-presenter {
+      font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+      font-weight: 700;
+      line-height: 1.35;
+      color: #fff;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+
+    /* Options grid */
+    .q-options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      max-width: 1100px;
+      width: 100%;
+    }
+    .q-option-card {
+      background: rgba(255,255,255,0.06);
+      border: 2px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 20px 28px;
+      font-size: clamp(1.1rem, 2vw, 1.6rem);
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: all 0.3s ease;
+    }
+    .q-option-card.revealed-correct {
+      background: rgba(16,185,129,0.2);
+      border-color: var(--primary);
+      box-shadow: 0 0 24px rgba(16,185,129,0.3);
+    }
+    .q-option-card.revealed-wrong {
+      background: rgba(239,68,68,0.1);
+      border-color: rgba(239,68,68,0.4);
+      opacity: 0.5;
+    }
+    .option-letter {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .opt-a { background: #e74c3c; }
+    .opt-b { background: #3498db; }
+    .opt-c { background: #f39c12; }
+    .opt-d { background: #9b59b6; }
+    .opt-e { background: #1abc9c; }
+    .option-bar {
+      height: 6px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 3px;
+      margin-top: 8px;
+      overflow: hidden;
+      width: 100%;
+    }
+    .option-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--primary);
+      transition: width 0.8s ease;
+    }
+    .option-vote-count {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.5);
+      margin-top: 4px;
+    }
+
+    /* Answered count */
+    .answered-status {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+    .answered-ring-wrap {
+      position: relative;
+      width: 80px; height: 80px;
+    }
+    .answered-ring-wrap svg { transform: rotate(-90deg); }
+    .answered-pct {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .answered-label {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.5);
+    }
+    .answered-number {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    /* ── RESULTS SCREEN ──────────────────────────────────────── */
+    #screen-results {
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse at 50% 30%, #0d2a1a, #05090f 60%);
+      padding: 40px;
+      overflow: hidden;
+    }
+    .results-inner {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+    }
+    .results-title {
+      font-size: 2.4rem;
+      font-weight: 900;
+      color: var(--primary);
+      text-shadow: 0 0 30px rgba(16,185,129,0.4);
+    }
+    .results-subtitle {
+      color: rgba(255,255,255,0.5);
+      font-size: 1rem;
+      margin-top: -16px;
+    }
+
+    /* Answer distribution bars */
+    .dist-bars {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .dist-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .dist-bar-label {
+      width: 220px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .dist-bar-outer {
+      flex: 1;
+      height: 36px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .dist-bar-inner {
+      height: 100%;
+      border-radius: 8px;
+      background: var(--primary);
+      transition: width 1.2s cubic-bezier(0.4,0,0.2,1);
+      display: flex;
+      align-items: center;
+      padding-left: 12px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #fff;
+      min-width: 0;
+    }
+    .dist-bar-inner.correct-bar { background: linear-gradient(90deg, #10b981, #059669); }
+    .dist-bar-inner.wrong-bar   { background: linear-gradient(90deg, #ef4444, #dc2626); }
+    .dist-bar-vote { color: rgba(255,255,255,0.4); font-size: 0.9rem; }
+
+    /* ── LEADERBOARD SCREEN ──────────────────────────────────── */
+    #screen-leaderboard {
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse at 50% 20%, #150a2a, #05090f 60%);
+      padding: 40px;
+    }
+    .lb-inner {
+      width: 100%;
+      max-width: 700px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .lb-heading {
+      text-align: center;
+      font-size: 2.8rem;
+      font-weight: 900;
+      color: #ffd700;
+      text-shadow: 0 0 40px rgba(255,215,0,0.4);
+      margin-bottom: 8px;
+    }
+    .lb-item-presenter {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 18px 28px;
+      animation: lb-slide-in 0.5s ease both;
+      transition: all 0.3s;
+    }
+    .lb-item-presenter:nth-child(2) { animation-delay: 0.05s; }
+    .lb-item-presenter:nth-child(3) { animation-delay: 0.10s; }
+    .lb-item-presenter:nth-child(4) { animation-delay: 0.15s; }
+    .lb-item-presenter:nth-child(5) { animation-delay: 0.20s; }
+    .lb-item-presenter.rank-1 {
+      background: rgba(255,215,0,0.1);
+      border-color: rgba(255,215,0,0.4);
+      box-shadow: 0 0 30px rgba(255,215,0,0.15);
+    }
+    .lb-item-presenter.rank-2 {
+      background: rgba(192,192,192,0.08);
+      border-color: rgba(192,192,192,0.3);
+    }
+    .lb-item-presenter.rank-3 {
+      background: rgba(205,127,50,0.08);
+      border-color: rgba(205,127,50,0.3);
+    }
+    @keyframes lb-slide-in {
+      from { opacity:0; transform: translateX(-40px); }
+      to   { opacity:1; transform: translateX(0); }
+    }
+    .lb-rank-num {
+      font-size: 2rem;
+      font-weight: 900;
+      width: 52px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .rank-1 .lb-rank-num { color: #ffd700; }
+    .rank-2 .lb-rank-num { color: #c0c0c0; }
+    .rank-3 .lb-rank-num { color: #cd7f32; }
+    .lb-name-presenter {
+      flex: 1;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .lb-score-presenter {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--primary);
+      text-shadow: 0 0 16px rgba(16,185,129,0.4);
+    }
+
+    /* ── WORDCLOUD SCREEN ────────────────────────────────────── */
+    #screen-wordcloud {
+      align-items: center;
+      justify-content: center;
+      padding: 60px;
+    }
+    #wordcloud-presenter {
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    /* ── ENDED SCREEN ────────────────────────────────────────── */
+    #screen-ended {
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse at 50% 40%, #0d2a1a, #05090f 60%);
+      text-align: center;
+    }
+    .ended-icon {
+      font-size: 6rem;
+      animation: bounce-in 0.6s ease;
+    }
+    .ended-text {
+      font-size: 3rem;
+      font-weight: 900;
+      color: var(--primary);
+      margin-top: 16px;
+    }
+    .ended-sub {
+      font-size: 1.2rem;
+      color: rgba(255,255,255,0.4);
+      margin-top: 8px;
+    }
+    @keyframes bounce-in {
+      0% { transform: scale(0); }
+      70% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    /* ── OVERLAY CONTROLS ────────────────────────────────────── */
+    #presenter-controls {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    body:hover #presenter-controls { opacity: 1; }
+    .ctrl-btn {
+      padding: 10px 18px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.6);
+      color: rgba(255,255,255,0.7);
+      font-size: 0.85rem;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .ctrl-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .ctrl-btn.danger { border-color: rgba(239,68,68,0.4); color: #f87171; }
+    .ctrl-btn.danger:hover { background: rgba(239,68,68,0.2); }
+
+    /* ── POLL / RATING RESULT ────────────────────────────────── */
+    .poll-result-grid {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .poll-bar-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .poll-bar-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+    }
+    .poll-bar-track {
+      height: 48px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .poll-bar-fill {
+      height: 100%;
+      border-radius: 12px;
+      background: linear-gradient(90deg, var(--primary), #34d399);
+      transition: width 1.2s cubic-bezier(0.4,0,0.2,1);
+      display: flex;
+      align-items: center;
+      padding-left: 16px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* ── RESPONSIVE ──────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .q-options-grid { grid-template-columns: 1fr; }
+      .q-main { padding: 16px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── SCREEN: WAITING (PIN Display) ─────────────────────────── -->
+<div id="screen-waiting" class="screen active">
+  <div class="waiting-inner">
+    <div class="waiting-logo">🎯 D.I.Y. Teamwork</div>
+    <div class="waiting-title" id="waiting-quiz-title">Loading...</div>
+
+    <div class="pin-display-box">
+      <div class="pin-label">Join Code / รหัสเข้าร่วม</div>
+      <div class="pin-code" id="waiting-pin">– – – – – –</div>
+    </div>
+    <div class="join-url">เปิดเบราว์เซอร์ → <span id="waiting-url">loading...</span></div>
+
+    <div class="participant-ticker">
+      <div class="ticker-count" id="waiting-count">0</div>
+      <div class="ticker-label">คนเข้าร่วมแล้ว</div>
+    </div>
+    <div class="participant-avatars" id="waiting-avatars"></div>
+  </div>
+</div>
+
+<!-- ── SCREEN: QUESTION ───────────────────────────────────────── -->
+<div id="screen-question" class="screen">
+  <!-- Top bar -->
+  <div class="q-topbar">
+    <div class="q-progress-info">
+      ข้อที่ <strong id="q-num">1</strong> / <span id="q-total">1</span>
+    </div>
+    <div class="q-type-badge badge badge-info" id="q-type-badge">Multiple Choice</div>
+    <div class="q-participants-live">
+      <div class="live-dot-presenter"></div>
+      <span id="q-answered-count">0</span> / <span id="q-participant-count">0</span> ตอบแล้ว
+    </div>
+  </div>
+
+  <!-- Progress bar (timer-driven) -->
+  <div class="q-progress-bar-wrap">
+    <div class="q-progress-bar-fill" id="q-timer-bar" style="width:100%"></div>
+  </div>
+
+  <!-- Main -->
+  <div class="q-main" id="q-main-content">
+    <!-- Timer ring -->
+    <div class="timer-ring-presenter" id="timer-ring-wrap">
+      <svg width="90" height="90" viewBox="0 0 90 90">
+        <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="7"/>
+        <circle id="timer-ring-circle" cx="45" cy="45" r="38" fill="none"
+          stroke="var(--primary)" stroke-width="7"
+          stroke-dasharray="238.76" stroke-dashoffset="0"
+          stroke-linecap="round"
+          style="transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 1s linear, stroke 0.5s;"/>
+        <text id="timer-ring-text" class="timer-text-presenter" x="45" y="45">30</text>
+      </svg>
+    </div>
+
+    <!-- Question card -->
+    <div class="q-card-presenter" id="q-card">
+      <img id="q-image" class="q-image-presenter" src="" alt="" style="display:none">
+      <div class="q-text-presenter" id="q-text">Loading question...</div>
+    </div>
+
+    <!-- Options / input area -->
+    <div id="q-options-area" style="width:100%;max-width:1100px;"></div>
+  </div>
+</div>
+
+<!-- ── SCREEN: RESULTS (Answer Distribution) ─────────────────── -->
+<div id="screen-results" class="screen">
+  <div class="results-inner">
+    <div class="results-title">📊 ผลคำตอบ</div>
+    <div class="results-subtitle" id="results-q-text"></div>
+    <div class="dist-bars" id="results-bars"></div>
+  </div>
+</div>
+
+<!-- ── SCREEN: LEADERBOARD ───────────────────────────────────── -->
+<div id="screen-leaderboard" class="screen">
+  <div class="lb-inner">
+    <div class="lb-heading">🏆 Leaderboard</div>
+    <div id="lb-list-presenter"></div>
+  </div>
+</div>
+
+<!-- ── SCREEN: WORDCLOUD ──────────────────────────────────────── -->
+<div id="screen-wordcloud" class="screen">
+  <div id="wordcloud-presenter"></div>
+</div>
+
+<!-- ── SCREEN: ENDED ──────────────────────────────────────────── -->
+<div id="screen-ended" class="screen">
+  <div class="ended-icon">🎉</div>
+  <div class="ended-text">สิ้นสุด Session แล้ว!</div>
+  <div class="ended-sub">ขอบคุณทุกคนที่เข้าร่วม 😊</div>
+</div>
+
+<!-- ── PRESENTER OVERLAY CONTROLS ────────────────────────────── -->
+<div id="presenter-controls">
+  <button class="ctrl-btn" onclick="cycleView()">🔄 เปลี่ยนมุมมอง</button>
+  <button class="ctrl-btn" onclick="showLeaderboard()">🏆 Leaderboard</button>
+  <button class="ctrl-btn" onclick="window.close()">✖ ปิด</button>
+</div>
+
+<script src="/js/scripts.js"></script>
+
+<script>
+// ============================================================
+// Presenter.html — Client Script
+// ============================================================
+
+const params     = new URLSearchParams(window.location.search);
+const SESSION_ID = params.get('sessionId') || '';
+
+// State
+let currentQuestion = null;
+let sessionStatus   = 'waiting';
+let totalParticipants = 0;
+let timerInterval   = null;
+let timerRemaining  = 0;
+let currentTimeLimit = 30;
+let knownParticipants = new Set();
+let pollerActive    = true;
+let currentView     = 'auto'; // auto | leaderboard | results | wordcloud
+
+// Poll interval
+const POLL_MS = 2500;
+
+// ── INIT ─────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  if (!SESSION_ID) {
+    showScreen('screen-waiting');
+    document.getElementById('waiting-quiz-title').textContent = 'ไม่พบ Session ID';
+    document.getElementById('waiting-pin').textContent = 'ERROR';
+    return;
+  }
+  startPolling();
+});
+
+// ── POLLING LOOP ──────────────────────────────────────────────
+function startPolling() {
+  poll();
+  setInterval(() => { if (pollerActive) poll(); }, POLL_MS);
+}
+
+function poll() {
+  gasRun('getLiveSessionData', [SESSION_ID, ''], 
+    onSessionData, 
+    err => console.warn('Poll error:', err)
+  );
+}
+
+// ── DATA HANDLER ──────────────────────────────────────────────
+function onSessionData(res) {
+  if (!res || !res.success) return;
+  const d = res.data;
+
+  totalParticipants = d.participantCount || 0;
+  sessionStatus     = d.status;
+
+  if (d.status === 'ended') {
+    pollerActive = false;
+    clearTimerInterval();
+    showScreen('screen-ended');
+    return;
+  }
+
+  if (d.status === 'waiting') {
+    showScreen('screen-waiting');
+    document.getElementById('waiting-quiz-title').textContent = d.quizTitle || 'รอเริ่ม...';
+    document.getElementById('waiting-pin').textContent        = formatPIN(d.pin);
+    document.getElementById('waiting-count').textContent      = d.participantCount;
+    document.getElementById('waiting-url').textContent        = getBaseUrl();
+    fetchAndRenderParticipants();
+    return;
+  }
+
+  if (d.status === 'active') {
+    const q = d.currentQuestion;
+    if (!q) return;
+
+    const isNewQuestion = !currentQuestion || currentQuestion.id !== q.id;
+
+    if (isNewQuestion) {
+      currentQuestion  = q;
+      currentView      = 'auto';
+      currentTimeLimit = Number(q.time_limit) || 30;
+      timerRemaining   = currentTimeLimit;
+      renderQuestion(q, d.currentQuestionIndex, d.totalQuestions);
+      showScreen('screen-question');
+      startTimerCountdown(currentTimeLimit);
+    }
+
+    // Update answered count
+    updateAnsweredCount(d);
+
+    // Auto-refresh results if answers are coming in
+    if (currentView === 'auto') {
+      refreshAnswerDistribution(q);
+    }
+  }
+}
+
+// ── RENDER QUESTION ───────────────────────────────────────────
+function renderQuestion(q, idx, total) {
+  document.getElementById('q-num').textContent   = idx + 1;
+  document.getElementById('q-total').textContent = total;
+  document.getElementById('q-type-badge').textContent = getTypeLabel(q.type);
+  document.getElementById('q-text').textContent  = q.text;
+
+  // Image
+  const img = document.getElementById('q-image');
+  if (q.image_url) {
+    img.src = q.image_url;
+    img.style.display = '';
+  } else {
+    img.style.display = 'none';
+  }
+
+  // Options area
+  const area = document.getElementById('q-options-area');
+  area.innerHTML = '';
+
+  const opts = q.options || [];
+
+  if (q.type === 'multiple_choice' || q.type === 'checkbox') {
+    const grid = document.createElement('div');
+    grid.className = 'q-options-grid';
+    const letters = ['A','B','C','D','E','F'];
+    const colors  = ['opt-a','opt-b','opt-c','opt-d','opt-e','opt-e'];
+    opts.forEach((opt, i) => {
+      const card = document.createElement('div');
+      card.className = 'q-option-card';
+      card.id = `opt-card-${i}`;
+      card.innerHTML = `
+        <div class="option-letter ${colors[i] || 'opt-a'}">${letters[i] || i+1}</div>
+        <div style="flex:1;">
+          <div>${opt.text}</div>
+          <div class="option-bar"><div class="option-bar-fill" id="opt-bar-${i}" style="width:0%"></div></div>
+          <div class="option-vote-count" id="opt-votes-${i}">0 คน</div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+    area.appendChild(grid);
+
+  } else if (q.type === 'true_false') {
+    const grid = document.createElement('div');
+    grid.className = 'q-options-grid';
+    grid.style.gridTemplateColumns = '1fr 1fr';
+    opts.forEach((opt, i) => {
+      const card = document.createElement('div');
+      card.className = 'q-option-card';
+      card.id = `opt-card-${i}`;
+      card.style.justifyContent = 'center';
+      card.innerHTML = `
+        <div style="text-align:center;">
+          <div style="font-size:3rem">${opt.text === 'True' ? '✅' : '❌'}</div>
+          <div style="font-size:1.6rem;font-weight:800;margin-top:8px">${opt.text}</div>
+          <div class="option-bar" style="margin-top:10px"><div class="option-bar-fill" id="opt-bar-${i}" style="width:0%"></div></div>
+          <div class="option-vote-count" id="opt-votes-${i}">0 คน</div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+    area.appendChild(grid);
+
+  } else if (q.type === 'poll') {
+    renderPollBars(area, opts);
+
+  } else if (q.type === 'word_cloud') {
+    // Show word cloud placeholder — will fill as answers arrive
+    area.innerHTML = `
+      <div style="text-align:center;color:rgba(255,255,255,0.4);font-size:1.1rem;padding:24px">
+        ☁️ Word Cloud กำลังรวมคำตอบ...
+      </div>
+      <div id="wc-inline" style="min-height:200px;"></div>
+    `;
+
+  } else if (q.type === 'rating') {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'text-align:center;';
+    wrap.innerHTML = `
+      <div style="font-size:1.2rem;color:rgba(255,255,255,0.5);margin-bottom:16px">การกระจายคะแนน</div>
+      <div id="rating-bars" style="display:flex;gap:16px;justify-content:center;align-items:flex-end;height:180px;"></div>
+    `;
+    area.appendChild(wrap);
+
+  } else {
+    // open_text / short_answer / q_and_a
+    area.innerHTML = `
+      <div style="text-align:center;padding:32px;color:rgba(255,255,255,0.4);font-size:1.1rem">
+        💬 ผู้เข้าร่วมกำลังพิมพ์คำตอบ...
+      </div>
+    `;
+  }
+}
+
+// ── RENDER POLL BARS ──────────────────────────────────────────
+function renderPollBars(container, opts) {
+  const grid = document.createElement('div');
+  grid.className = 'poll-result-grid';
+  opts.forEach((opt, i) => {
+    const item = document.createElement('div');
+    item.className = 'poll-bar-item';
+    item.innerHTML = `
+      <div class="poll-bar-top">
+        <span>${opt.text}</span>
+        <span id="poll-pct-${i}">0%</span>
+      </div>
+      <div class="poll-bar-track">
+        <div class="poll-bar-fill" id="poll-fill-${i}" style="width:0%"></div>
+      </div>
+    `;
+    grid.appendChild(item);
+  });
+  container.appendChild(grid);
+}
+
+// ── UPDATE ANSWERED COUNT ─────────────────────────────────────
+function updateAnsweredCount(d) {
+  document.getElementById('q-answered-count').textContent = '–'; // updated via results fetch
+  document.getElementById('q-participant-count').textContent = d.participantCount;
+}
+
+// ── REFRESH ANSWER DISTRIBUTION ───────────────────────────────
+function refreshAnswerDistribution(q) {
+  if (!SESSION_ID || !q) return;
+  gasRun('getQuestionResults', [SESSION_ID, q.id], res => {
+    if (res && res.success) renderDistribution(res.data, q);
+  });
+}
+
+function renderDistribution(data, q) {
+  const { total, answered, answerCounts } = data;
+
+  // Update answered badge
+  const answEl = document.getElementById('q-answered-count');
+  if (answEl) answEl.textContent = answered;
+
+  // Update timer bar progress (answered ratio)
+  const pct = total ? Math.round(answered / total * 100) : 0;
+
+  const opts = q.options || [];
+
+  if (q.type === 'multiple_choice' || q.type === 'checkbox' || q.type === 'true_false') {
+    opts.forEach((opt, i) => {
+      const count   = answerCounts[opt.text] || 0;
+      const barPct  = answered ? Math.round(count / answered * 100) : 0;
+      const barEl   = document.getElementById(`opt-bar-${i}`);
+      const voteEl  = document.getElementById(`opt-votes-${i}`);
+      if (barEl)  barEl.style.width = barPct + '%';
+      if (voteEl) voteEl.textContent = count + ' คน';
+    });
+
+  } else if (q.type === 'poll') {
+    opts.forEach((opt, i) => {
+      const count  = answerCounts[opt.text] || 0;
+      const barPct = answered ? Math.round(count / answered * 100) : 0;
+      const fillEl = document.getElementById(`poll-fill-${i}`);
+      const pctEl  = document.getElementById(`poll-pct-${i}`);
+      if (fillEl) fillEl.style.width = barPct + '%';
+      if (pctEl)  pctEl.textContent  = barPct + '%';
+    });
+  } else if (q.type === 'word_cloud') {
+      const wcEl = document.getElementById('wc-inline');
+      if (wcEl && typeof renderWordCloud === 'function') {
+        const words = Object.entries(answerCounts).map(([text, count]) => ({ text, count }));
+        renderWordCloud('wc-inline', words);
+      }
+  }
+}
+
+// ── REVEAL CORRECT ANSWERS ────────────────────────────────────
+function revealAnswers() {
+  if (!currentQuestion) return;
+  const opts = currentQuestion.options || [];
+  opts.forEach((opt, i) => {
+    const card = document.getElementById(`opt-card-${i}`);
+    if (!card) return;
+    if (opt.is_correct) {
+      card.classList.add('revealed-correct');
+    } else {
+      card.classList.add('revealed-wrong');
+    }
+  });
+}
+
+// ── TIMER ─────────────────────────────────────────────────────
+function startTimerCountdown(seconds) {
+  clearTimerInterval();
+  timerRemaining = seconds;
+  updateTimerDisplay(seconds, seconds);
+  timerInterval = setInterval(() => {
+    timerRemaining--;
+    updateTimerDisplay(timerRemaining, seconds);
+    if (timerRemaining <= 0) {
+      clearTimerInterval();
+      revealAnswers();
+    }
+  }, 1000);
+}
+
+function clearTimerInterval() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function updateTimerDisplay(remaining, total) {
+  const textEl   = document.getElementById('timer-ring-text');
+  const circleEl = document.getElementById('timer-ring-circle');
+  const barEl    = document.getElementById('q-timer-bar');
+  if (!textEl || !circleEl) return;
+
+  textEl.textContent = Math.max(0, remaining);
+  const circumference = 238.76;
+  const offset = circumference * (1 - Math.max(0, remaining) / total);
+  circleEl.style.strokeDashoffset = offset;
+
+  // Color shifts: green → yellow → red
+  const pct = remaining / total;
+  if (pct > 0.5) {
+    circleEl.style.stroke = 'var(--primary)';
+  } else if (pct > 0.25) {
+    circleEl.style.stroke = '#f59e0b';
+  } else {
+    circleEl.style.stroke = '#ef4444';
+  }
+
+  if (barEl) barEl.style.width = (Math.max(0, remaining) / total * 100) + '%';
+}
+
+// ── FETCH PARTICIPANTS ────────────────────────────────────────
+function fetchAndRenderParticipants() {
+  gasRun('getParticipants', [SESSION_ID], res => {
+    if (!res || !res.success) return;
+    const parts = res.data || [];
+    const avatarsEl = document.getElementById('waiting-avatars');
+    parts.forEach(p => {
+      if (!knownParticipants.has(p.id)) {
+        knownParticipants.add(p.id);
+        const chip = document.createElement('div');
+        chip.className = 'avatar-chip';
+        chip.textContent = p.name;
+        avatarsEl.appendChild(chip);
+      }
+    });
+  });
+}
+
+// ── SHOW LEADERBOARD ──────────────────────────────────────────
+function showLeaderboard() {
+  currentView = 'leaderboard';
+  gasRun('getLeaderboard', [SESSION_ID], res => {
+    if (!res || !res.success) return;
+    renderLeaderboard(res.data || []);
+    showScreen('screen-leaderboard');
+  });
+}
+
+function renderLeaderboard(entries) {
+  const list = document.getElementById('lb-list-presenter');
+  list.innerHTML = '';
+  const top = entries.slice(0, 7);
+  const rankEmoji = ['🥇','🥈','🥉'];
+  top.forEach((entry, i) => {
+    const item = document.createElement('div');
+    item.className = `lb-item-presenter rank-${i+1}`;
+    item.innerHTML = `
+      <div class="lb-rank-num">${rankEmoji[i] || i+1}</div>
+      <div class="lb-name-presenter">${entry.name}</div>
+      <div class="lb-score-presenter">${entry.totalScore} pts</div>
+    `;
+    list.appendChild(item);
+  });
+}
+
+// ── SHOW RESULTS SCREEN ───────────────────────────────────────
+function showResults() {
+  if (!currentQuestion) return;
+  currentView = 'results';
+
+  gasRun('getQuestionResults', [SESSION_ID, currentQuestion.id], res => {
+    if (!res || !res.success) return;
+    const data = res.data;
+    const bars  = document.getElementById('results-bars');
+    const subEl = document.getElementById('results-q-text');
+    subEl.textContent = currentQuestion.text;
+    bars.innerHTML = '';
+
+    const opts    = currentQuestion.options || [];
+    const answered = data.answered || 0;
+
+    if (opts.length) {
+      opts.forEach(opt => {
+        const count  = (data.answerCounts || {})[opt.text] || 0;
+        const pct    = answered ? Math.round(count / answered * 100) : 0;
+        const isCorr = opt.is_correct;
+        const row    = document.createElement('div');
+        row.className = 'dist-bar-row';
+        row.innerHTML = `
+          <div class="dist-bar-label">${opt.text}</div>
+          <div class="dist-bar-outer" style="flex:1">
+            <div class="dist-bar-inner ${isCorr ? 'correct-bar' : ''}" style="width:0%" data-target="${pct}">
+              ${pct > 10 ? pct + '%' : ''}
+            </div>
+          </div>
+          <div class="dist-bar-vote" style="width:60px;text-align:right">${count} คน</div>
+        `;
+        bars.appendChild(row);
+      });
+    } else {
+      // open/short text — show top answers
+      const entries = Object.entries(data.answerCounts || {}).sort((a,b)=>b[1]-a[1]).slice(0,8);
+      entries.forEach(([text, count]) => {
+        const pct = answered ? Math.round(count / answered * 100) : 0;
+        const row = document.createElement('div');
+        row.className = 'dist-bar-row';
+        row.innerHTML = `
+          <div class="dist-bar-label">${text}</div>
+          <div class="dist-bar-outer" style="flex:1">
+            <div class="dist-bar-inner" style="width:0%" data-target="${pct}">${pct > 10 ? pct+'%' : ''}</div>
+          </div>
+          <div class="dist-bar-vote" style="width:60px;text-align:right">${count} คน</div>
+        `;
+        bars.appendChild(row);
+      });
+    }
+
+    showScreen('screen-results');
+    // Animate bars after render
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.dist-bar-inner[data-target]').forEach(el => {
+        el.style.width = el.dataset.target + '%';
+      });
+    });
+  });
+}
+
+// ── CYCLE VIEW ────────────────────────────────────────────────
+function cycleView() {
+  if (sessionStatus !== 'active') return;
+  const views = ['question', 'results', 'leaderboard'];
+  const curr = views.indexOf(currentView === 'auto' ? 'question' : currentView);
+  const next = views[(curr + 1) % views.length];
+  currentView = next;
+  if (next === 'question')    { showScreen('screen-question'); }
+  else if (next === 'results'){ showResults(); }
+  else                        { showLeaderboard(); }
+}
+
+// ── SCREEN SWITCHER ───────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function formatPIN(pin) {
+  if (!pin) return '– – – – – –';
+  const s = String(pin);
+  return s.length === 6 ? s.slice(0,3) + ' ' + s.slice(3) : s;
+}
+
+function getBaseUrl() {
+  const url = window.location.href;
+  return url.split('?')[0];
+}
+
+function getTypeLabel(type) {
+  const map = {
+    multiple_choice: 'Multiple Choice',
+    true_false:      'True / False',
+    checkbox:        'Checkbox',
+    short_answer:    'Short Answer',
+    poll:            'Poll',
+    open_text:       'Open Text',
+    word_cloud:      'Word Cloud',
+    rating:          'Rating',
+    q_and_a:         'Q & A'
+  };
+  return map[type] || type;
+}
+</script>
+</body>
+</html>
