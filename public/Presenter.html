@@ -804,7 +804,7 @@ function onSessionData(res) {
     updateAnsweredCount(d);
 
     // Auto-refresh results if answers are coming in
-    if (currentView === 'auto') {
+    if (currentView === 'auto' || currentView === 'wordcloud') {
       refreshAnswerDistribution(q);
     }
   }
@@ -877,7 +877,7 @@ function renderQuestion(q, idx, total) {
   } else if (q.type === 'poll') {
     renderPollBars(area, opts);
 
-  } else if (q.type === 'word_cloud') {
+  } else if (isWordCloudType(q.type)) {
     // Show word cloud placeholder — will fill as answers arrive
     area.innerHTML = `
       <div style="text-align:center;color:rgba(255,255,255,0.4);font-size:1.1rem;padding:24px">
@@ -971,11 +971,13 @@ function renderDistribution(data, q) {
       if (fillEl) fillEl.style.width = barPct + '%';
       if (pctEl)  pctEl.textContent  = barPct + '%';
     });
-  } else if (q.type === 'word_cloud') {
-      const wcEl = document.getElementById('wc-inline');
-      if (wcEl && typeof renderWordCloud === 'function') {
+  } else if (isWordCloudType(q.type)) {
+      const wcInlineEl = document.getElementById('wc-inline');
+      const wcResultEl = document.getElementById('wc-results');
+      if ((wcInlineEl || wcResultEl) && typeof renderWordCloud === 'function') {
         const words = Object.entries(answerCounts).map(([text, count]) => ({ text, count }));
-        renderWordCloud('wc-inline', words);
+        if (wcInlineEl) renderWordCloud('wc-inline', words);
+        if (wcResultEl) renderWordCloud('wc-results', words);
       }
   }
 }
@@ -1091,6 +1093,14 @@ function showResults() {
   gasRun('getQuestionResults', [SESSION_ID, currentQuestion.id], res => {
     if (!res || !res.success) return;
     const data = res.data;
+
+    if (isWordCloudType(currentQuestion.type)) {
+      renderWordCloudResults(data, currentQuestion);
+      showScreen('screen-wordcloud');
+      currentView = 'wordcloud';
+      return;
+    }
+
     const bars  = document.getElementById('results-bars');
     const subEl = document.getElementById('results-q-text');
     subEl.textContent = currentQuestion.text;
@@ -1148,11 +1158,14 @@ function showResults() {
 // ── CYCLE VIEW ────────────────────────────────────────────────
 function cycleView() {
   if (sessionStatus !== 'active') return;
-  const views = ['question', 'results', 'leaderboard'];
+  const views = isWordCloudType(currentQuestion?.type)
+    ? ['question', 'wordcloud', 'leaderboard']
+    : ['question', 'results', 'leaderboard'];
   const curr = views.indexOf(currentView === 'auto' ? 'question' : currentView);
   const next = views[(curr + 1) % views.length];
   currentView = next;
   if (next === 'question')    { showScreen('screen-question'); }
+  else if (next === 'wordcloud') { showResults(); }
   else if (next === 'results'){ showResults(); }
   else                        { showLeaderboard(); }
 }
@@ -1189,6 +1202,26 @@ function getTypeLabel(type) {
     q_and_a:         'Q & A'
   };
   return map[type] || type;
+}
+
+function isWordCloudType(type) {
+  return type === 'word_cloud' || type === 'q_and_a';
+}
+
+function renderWordCloudResults(data, q) {
+  const wrap = document.getElementById('wordcloud-presenter');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="results-inner" style="max-width:1200px">
+      <div class="results-title">☁️ Word Cloud</div>
+      <div class="results-subtitle">${q?.text || ''}</div>
+      <div id="wc-results" style="width:100%;min-height:360px"></div>
+    </div>
+  `;
+  const words = Object.entries(data.answerCounts || {}).map(([text, count]) => ({ text, count }));
+  if (typeof renderWordCloud === 'function') {
+    renderWordCloud('wc-results', words);
+  }
 }
 </script>
 </body>

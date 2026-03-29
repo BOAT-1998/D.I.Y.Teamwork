@@ -34,6 +34,27 @@ body { background:var(--bg-dark); min-height:100vh; padding:0; }
 }
 .pin-label { font-size:11px; color:var(--text-muted); text-align:center; text-transform:uppercase; letter-spacing:1px; }
 .join-url  { font-size:11px; color:var(--text-muted); text-align:center; margin-top:8px; word-break:break-all; }
+.join-qr-wrap {
+  margin-top:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.join-qr-image {
+  width:138px;
+  height:138px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:#fff;
+  object-fit:contain;
+  padding:6px;
+}
+.join-actions {
+  display:grid;
+  grid-template-columns:1fr;
+  gap:6px;
+  margin-top:8px;
+}
 
 /* Participants */
 .participants-section { padding:0 16px 16px; flex:1; }
@@ -171,8 +192,14 @@ body { background:var(--bg-dark); min-height:100vh; padding:0; }
       <div class="pin-display" id="session-pin">—</div>
       <div class="pin-label">หรือสแกน QR</div>
       <div class="join-url" id="join-url"></div>
-      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" onclick="copyJoinLink()">📋 คัดลอกลิงก์</button>
-      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:6px" onclick="openPresenter()">🖥️ เปิด Presenter</button>
+      <div class="join-qr-wrap">
+        <img class="join-qr-image" id="join-qr-img" alt="Join QR Code">
+      </div>
+      <div class="join-actions">
+        <button class="btn btn-ghost btn-sm" style="width:100%" onclick="copyJoinLink()">📋 คัดลอกลิงก์</button>
+        <button class="btn btn-secondary btn-sm" style="width:100%" onclick="shareJoinQRCode()">📱 แชร์ QR Code</button>
+        <button class="btn btn-outline btn-sm" style="width:100%" onclick="openPresenter()">🖥️ เปิด Presenter</button>
+      </div>
     </div>
 
     <!-- Participants -->
@@ -335,13 +362,26 @@ let state = {
   poller:       null,
   resultPoller: null,
   hostTimer:    null,   // countdown timer สำหรับ Host
+  maxParticipants: 0,
+  autoStartAtLimit: false,
+  isStarting: false
 };
 
 // ── INIT ── รอ google.script.run พร้อมก่อน
 window.addEventListener('load', function() {
   loadQuizList();
   loadMusicSettings();
+  loadHostSettings();
 });
+
+function loadHostSettings() {
+  gasRun('getSettings', null, res => {
+    if (res.success) {
+      state.maxParticipants = parseInt(res.data.max_participants || '0', 10);
+      state.autoStartAtLimit = res.data.auto_start_at_limit === 'true';
+    }
+  });
+}
 
 function loadQuizList() {
   const list = document.getElementById('quiz-list-host');
@@ -394,9 +434,9 @@ function startSession() {
     state.pin       = res.pin;
     state.status    = 'waiting';
 
-    // แสดง PIN
+    // แสดง PIN + QR
     document.getElementById('session-pin').textContent = res.pin;
-    document.getElementById('join-url').textContent = `${BASE_URL}/player?pin=${res.pin}`;
+    updateJoinShareUI();
     document.getElementById('session-card').style.display = 'block';
     document.getElementById('status-dot').style.display   = 'flex';
     document.getElementById('status-text').textContent    = '🟡 รอผู้เข้าร่วม';
@@ -419,6 +459,7 @@ function startSession() {
 
 function startFirstQuestion() {
   if (!state.sessionId) { showToast('ยังไม่มี Session กรุณากด "เริ่ม Session" ก่อน','error'); return; }
+  state.isStarting = true;
   showLoading('กำลังเริ่มคำถามข้อแรก...');
   gasRun('nextQuestion', [state.sessionId], res => {
     hideLoading();
@@ -453,7 +494,21 @@ function pollSession() {
     const d = res.data;
     // อัปเดตผู้เข้าร่วม
     renderParticipants(d);
-    document.getElementById('participant-count').textContent = d.participantCount;
+    
+    let countText = d.participantCount;
+    if (state.maxParticipants > 0) {
+      countText = `${d.participantCount} / ${state.maxParticipants}`;
+    }
+    document.getElementById('participant-count').textContent = countText;
+
+    // Check Auto-start
+    if (state.autoStartAtLimit && state.maxParticipants > 0 && d.status === 'waiting' && !state.isStarting) {
+      if (d.participantCount >= state.maxParticipants) {
+        state.isStarting = true;
+        showToast('คนเข้าครบแล้ว! กำลังเริ่มอัตโนมัติ...', 'info');
+        startFirstQuestion();
+      }
+    }
 
     if (d.status === 'ended') {
       state.poller?.stop();
@@ -786,6 +841,8 @@ function resetHost() {
   document.getElementById('controls-ended').style.display   = 'none';
   document.getElementById('status-dot').style.display = 'none';
   document.getElementById('status-text').textContent = 'รอเริ่ม Session';
+  document.getElementById('join-url').textContent = '';
+  document.getElementById('join-qr-img').removeAttribute('src');
   loadQuizList();
 }
 
@@ -864,13 +921,115 @@ function toggleMusic() {
 
 // ── LINKS ──
 function copyJoinLink() {
-  if (state.pin) copyText(`${BASE_URL}/player?pin=${state.pin}`, 'คัดลอก Join Link แล้ว!');
+  const link = getJoinLink();
+  if (link) copyText(link, 'คัดลอก Join Link แล้ว!');
 }
 function openPresenter() {
   if (state.sessionId) window.open(`/presenter?sessionId=${state.sessionId}`, '_blank', 'width=1280,height=720');
 }
 function openLeaderboardWindow() {
   if (state.sessionId) window.open(`/presenter?sessionId=${state.sessionId}&view=leaderboard`, '_blank', 'width=1280,height=720');
+}
+
+function getJoinLink() {
+  if (!state.pin) return '';
+  return `${BASE_URL}/player?pin=${encodeURIComponent(state.pin)}`;
+}
+
+function getJoinQrUrl(size = 256) {
+  const link = getJoinLink();
+  if (!link) return '';
+  return `/api/sessions/qr?size=${size}&text=${encodeURIComponent(link)}`;
+}
+
+function getJoinQrFallbackUrl(size = 256) {
+  const link = getJoinLink();
+  if (!link) return '';
+  const s = Math.max(120, Math.min(1024, Number(size) || 256));
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${s}x${s}&data=${encodeURIComponent(link)}`;
+}
+
+function setJoinQrImage(size = 256) {
+  const qrImg = document.getElementById('join-qr-img');
+  if (!qrImg) return;
+
+  const primary = getJoinQrUrl(size);
+  const fallback = getJoinQrFallbackUrl(size);
+
+  qrImg.dataset.fallbackUsed = '0';
+  qrImg.onerror = function () {
+    if (this.dataset.fallbackUsed === '0' && fallback) {
+      this.dataset.fallbackUsed = '1';
+      this.src = fallback;
+      return;
+    }
+    this.onerror = null;
+    showToast('สร้าง QR Code ไม่สำเร็จ', 'error');
+  };
+
+  qrImg.src = primary || fallback;
+}
+
+function updateJoinShareUI() {
+  const link = getJoinLink();
+  document.getElementById('join-url').textContent = link;
+  setJoinQrImage(256);
+}
+
+async function shareJoinQRCode() {
+  const link = getJoinLink();
+  if (!link) {
+    showToast('ยังไม่มีลิงก์สำหรับแชร์', 'warning');
+    return;
+  }
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'เข้าร่วม D.I.Y. Teamwork',
+        text: `เข้าร่วมด้วย PIN: ${state.pin}`,
+        url: link
+      });
+      showToast('แชร์ลิงก์แล้ว', 'success');
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+    }
+  }
+
+  const qrWindow = window.open('', '_blank', 'width=560,height=720');
+  if (!qrWindow) {
+    copyJoinLink();
+    return;
+  }
+
+  const qrPreview = document.getElementById('join-qr-img');
+  const qrUrl = (qrPreview && qrPreview.src) ? qrPreview.src : (getJoinQrUrl(520) || getJoinQrFallbackUrl(520));
+  qrWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="th">
+    <head>
+      <meta charset="UTF-8" />
+      <title>Share QR Code</title>
+      <style>
+        body{margin:0;padding:24px;background:#0a0f1e;color:#f1f5f9;font-family:Arial,sans-serif;text-align:center}
+        .box{max-width:520px;margin:0 auto;background:#111a2f;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px}
+        img{width:100%;max-width:420px;background:#fff;border-radius:12px;padding:8px}
+        .pin{font-size:40px;font-weight:800;letter-spacing:4px;color:#10b981;margin:10px 0}
+        .url{font-size:13px;word-break:break-all;color:#cbd5e1;margin-top:10px}
+      </style>
+    </head>
+    <body>
+      <div class="box">
+        <h2 style="margin:0 0 8px 0">สแกนเพื่อเข้าร่วม</h2>
+        <div class="pin">${state.pin || ''}</div>
+        <img src="${qrUrl}" alt="Join QR Code" />
+        <div class="url">${link}</div>
+      </div>
+    </body>
+    </html>
+  `);
+  qrWindow.document.close();
 }
 </script>
 </body>

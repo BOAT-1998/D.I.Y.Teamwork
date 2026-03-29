@@ -9,7 +9,7 @@
 <!-- EXPORT LIBRARIES -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/libs/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -206,7 +206,7 @@ body { background:var(--bg-dark); display:flex; min-height:100vh; }
         <span class="icon">⚙️</span> ตั้งค่า
       </div>
       <div class="nav-item" onclick="showPage('music')">
-        <span class="icon">🎵</span> เพลง
+        <span class="icon">🔊</span> Sound
       </div>
     </div>
   </nav>
@@ -266,7 +266,11 @@ body { background:var(--bg-dark); display:flex; min-height:100vh; }
     <div id="page-quizzes" class="page-section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
         <h2 style="font-size:22px;font-weight:800">Quiz ทั้งหมด</h2>
-        <button class="btn btn-primary" onclick="openCreateQuizModal()">+ สร้าง Quiz ใหม่</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="file" id="quiz-import-file" accept=".xlsx,.xls" style="display:none" onchange="handleQuizImportFile(event)">
+          <button class="btn btn-secondary" onclick="triggerQuizImport()">📥 Import Excel</button>
+          <button class="btn btn-primary" onclick="openCreateQuizModal()">+ สร้าง Quiz ใหม่</button>
+        </div>
       </div>
       <div class="quiz-grid" id="quiz-grid">
         <div class="empty-state"><div class="empty-icon">🔄</div><div class="empty-title">กำลังโหลด...</div></div>
@@ -335,16 +339,21 @@ body { background:var(--bg-dark); display:flex; min-height:100vh; }
 
     <!-- ── SETTINGS ── -->
     <div id="page-settings" class="page-section">
-      <h2 style="font-size:22px;font-weight:800;margin-bottom:20px">⚙️ ตั้งค่าระบบ</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <h2 style="font-size:22px;font-weight:800;margin:0">⚙️ ตั้งค่าระบบ</h2>
+        <button class="btn btn-primary" onclick="saveAllSettings()">💾 บันทึกการตั้งค่า</button>
+      </div>
       <div class="grid-2" style="gap:24px">
         <div class="card settings-section">
           <h3>🎨 ทั่วไป</h3>
           <div class="form-group"><label class="form-label">ชื่อแอป</label><input class="form-input" id="s-app-name" type="text" placeholder="D.I.Y. Teamwork"></div>
-          <div class="form-group"><label class="form-label">สี Primary (hex)</label><input class="form-input" id="s-color" type="color" style="height:42px;padding:4px 8px"></div>
-          <div class="form-group"><label class="form-label">ฟอนต์ของระบบ (Font Family)</label><input class="form-input" id="s-font" type="text" placeholder="เช่น 'Outfit', 'Sarabun', sans-serif"></div>
-          <div class="form-group"><label class="form-label">ขนาดฟอนต์ (px)</label><input class="form-input" id="s-font-size" type="number" placeholder="16"></div>
           <div class="form-group"><label class="form-label">เวลาตอบค่าเริ่มต้น (วินาที)</label><input class="form-input" id="s-time" type="number" min="5" max="300" placeholder="30"></div>
           <div class="form-group"><label class="form-label">Admin Password</label><input class="form-input" id="s-admin-pass" type="password" placeholder="••••••••"></div>
+          <div class="form-group"><label class="form-label">จำกัดจำนวนผู้เล่น (0 = ไม่จำกัด)</label><input class="form-input" id="s-max-participants" type="number" min="0" placeholder="0"></div>
+          <div class="setting-row">
+            <div class="setting-info"><div class="setting-label">เริ่มอัตโนมัติเมื่อครบจำนวน</div><div class="setting-desc">เริ่มเกมทันทีเมื่อคนเข้าครบตามที่กำหนด</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="s-auto-start"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
         </div>
         <div class="card settings-section">
           <h3>🔧 ฟีเจอร์</h3>
@@ -353,21 +362,29 @@ body { background:var(--bg-dark); display:flex; min-height:100vh; }
             <label class="toggle-switch"><input type="checkbox" id="s-leaderboard" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
           </div>
           <div class="setting-row">
-            <div class="setting-info"><div class="setting-label">เปิดเพลงอัตโนมัติ</div><div class="setting-desc">เล่นเพลงเมื่อเริ่ม session</div></div>
+            <div class="setting-info"><div class="setting-label">เปิดเสียงประกอบอัตโนมัติ</div><div class="setting-desc">เล่น BGM เมื่อเริ่ม session</div></div>
             <label class="toggle-switch"><input type="checkbox" id="s-music"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
           </div>
           <div class="form-group" style="margin-top:16px;">
-            <label class="form-label">ระดับเสียงเพลง (0.0 - 1.0)</label>
+            <label class="form-label">ระดับเสียง (Master Volume 0.0 - 1.0)</label>
             <input class="form-input" id="s-music-vol" type="number" step="0.1" min="0" max="1" placeholder="0.5">
+          </div>
+          <div class="form-group"><label class="form-label">สี Primary (hex)</label><input class="form-input" id="s-color" type="color" style="height:42px;padding:4px 8px"></div>
+          <div class="form-group"><label class="form-label">Background Color</label><input class="form-input" id="s-bg-color" type="color" style="height:42px;padding:4px 8px"></div>
+          <div class="form-group"><label class="form-label">Background Image URL</label><input class="form-input" id="s-bg-image" type="url" placeholder="https://example.com/background.jpg"></div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">ฟอนต์ของระบบ (Font Family)</label>
+            <input class="form-input" id="s-font" type="text" placeholder="เช่น 'Outfit', 'Sarabun', sans-serif">
+            <label class="form-label" style="margin-top:12px">ขนาดฟอนต์ (px)</label>
+            <input class="form-input" id="s-font-size" type="number" placeholder="16">
           </div>
         </div>
       </div>
-      <button class="btn btn-primary btn-lg mt-24" onclick="saveAllSettings()">💾 บันทึกการตั้งค่า</button>
     </div>
 
-    <!-- ── MUSIC ── -->
+    <!-- ── MUSIC (Sound) ── -->
     <div id="page-music" class="page-section">
-      <h2 style="font-size:22px;font-weight:800;margin-bottom:20px">🎵 จัดการเพลง</h2>
+      <h2 style="font-size:22px;font-weight:800;margin-bottom:20px">🔊 จัดการระบบเสียง (Sound)</h2>
       <div class="card mb-16">
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">อัปโหลดไฟล์เพลงจากเครื่อง (MP3/WAV) หรือใช้ลิงก์จาก Google Drive</p>
         <div style="display:flex; gap:10px; margin-bottom:12px;">
@@ -381,6 +398,26 @@ body { background:var(--bg-dark); display:flex; min-height:100vh; }
           <button class="btn btn-primary" onclick="addDriveMusic()">ใช้ลิงก์นี้</button>
         </div>
       </div>
+      </div>
+      
+      <div class="card mb-16" id="current-sounds-display" style="background:rgba(16,185,129,0.05); border:1px dashed var(--primary); display:none;">
+        <h3 style="font-size:14px;margin-bottom:12px">🔔 การตั้งค่าเสียงปัจจุบัน</h3>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">
+          <div style="padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:11px;color:var(--text-muted)">BGM (วนลูป)</div>
+            <div id="cur-bgm-name" style="font-size:13px;font-weight:600;margin-top:4px;color:var(--primary)">- ไม่ได้เลือก -</div>
+          </div>
+          <div style="padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:11px;color:var(--text-muted)">เอฟเฟกต์ (ตอบถูก)</div>
+            <div id="cur-correct-name" style="font-size:13px;font-weight:600;margin-top:4px;color:var(--primary)">- ไม่ได้เลือก -</div>
+          </div>
+          <div style="padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:11px;color:var(--text-muted)">เอฟเฟกต์ (ตอบผิด)</div>
+            <div id="cur-wrong-name" style="font-size:13px;font-weight:600;margin-top:4px;color:var(--primary)">- ไม่ได้เลือก -</div>
+          </div>
+        </div>
+      </div>
+
       <div id="music-list" class="quiz-grid"></div>
     </div>
 
@@ -542,6 +579,7 @@ function loadQuizList() {
           <span class="quiz-type-badge">${catIcons[q.category] || '🎯'}</span>
           <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
             <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();openQuizEditor('${q.id}')" title="แก้ไข">✏️ Edit</button>
+            <button class="btn btn-sm btn-blue" onclick="event.stopPropagation();exportQuizExcel('${q.id}')">📤 Excel</button>
             <button class="btn btn-sm btn-orange" onclick="event.stopPropagation();copyQuiz('${q.id}')" title="คัดลอกสำเนา">📑 Copy</button>
             <button class="btn btn-sm btn-blue" onclick="event.stopPropagation();startQuickSession('${q.id}')">▶ Host</button>
             <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteQuiz('${q.id}')">🗑 Delete</button>
@@ -558,6 +596,252 @@ function loadQuizList() {
 }
 
 function openCreateQuizModal() { openModal('modal-create-quiz'); }
+
+const QUIZ_OPTION_COLOR_PALETTE = [
+  '#ef4444', '#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899',
+  '#14b8a6', '#f97316', '#84cc16', '#06b6d4'
+];
+
+function normalizeHexColor(color) {
+  const c = String(color || '').trim();
+  if (!c) return '';
+  if (/^#[0-9a-fA-F]{6}$/.test(c)) return c.toLowerCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(c)) {
+    return ('#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3]).toLowerCase();
+  }
+  return '';
+}
+
+function ensureUniqueOptionColors(options) {
+  const used = new Set();
+  return (options || []).map((opt, i) => {
+    const out = { ...opt };
+    let color = normalizeHexColor(out.color);
+    if (!color || used.has(color)) {
+      color = QUIZ_OPTION_COLOR_PALETTE.find(c => !used.has(c)) || QUIZ_OPTION_COLOR_PALETTE[i % QUIZ_OPTION_COLOR_PALETTE.length];
+    }
+    out.color = color;
+    used.add(color);
+    return out;
+  });
+}
+
+function triggerQuizImport() {
+  const el = document.getElementById('quiz-import-file');
+  if (el) el.click();
+}
+
+function getImportRowValue(row, keys) {
+  for (const k of keys) {
+    if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') return row[k];
+  }
+  return '';
+}
+
+function toBool(v) {
+  const s = String(v || '').trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes' || s === 'y' || s === 'ถูก';
+}
+
+function normalizeQuestionType(t) {
+  const m = {
+    mc: 'multiple_choice',
+    multiple_choice: 'multiple_choice',
+    true_false: 'true_false',
+    tf: 'true_false',
+    checkbox: 'checkbox',
+    short_answer: 'short_answer',
+    short: 'short_answer',
+    poll: 'poll',
+    word_cloud: 'word_cloud',
+    wordcloud: 'word_cloud',
+    rating: 'rating',
+    open_text: 'open_text',
+    q_and_a: 'q_and_a',
+    qa: 'q_and_a',
+    'q&a': 'q_and_a'
+  };
+  const key = String(t || '').trim().toLowerCase().replace(/\s+/g, '_');
+  return m[key] || 'multiple_choice';
+}
+
+function parseQuestionsFromExcelRows(rows) {
+  const out = [];
+  rows.forEach((row, idx) => {
+    const type = normalizeQuestionType(getImportRowValue(row, ['type', 'question_type']));
+    const text = String(getImportRowValue(row, ['text', 'question', 'question_text'])).trim();
+    if (!text) return;
+    const timeLimit = parseInt(getImportRowValue(row, ['time_limit', 'time', 'seconds']), 10);
+    const points = parseInt(getImportRowValue(row, ['points', 'score']), 10);
+    const order = parseInt(getImportRowValue(row, ['order_num', 'order', 'no']), 10);
+    const imageUrl = String(getImportRowValue(row, ['image_url', 'image'])).trim();
+
+    let options = [];
+    for (let i = 1; i <= 6; i++) {
+      const textVal = String(getImportRowValue(row, [
+        `option_${i}_text`, `option${i}_text`, `option_${i}`, `option${i}`,
+        `choice_${i}`, `choice${i}`
+      ])).trim();
+      if (!textVal) continue;
+      const correctVal = getImportRowValue(row, [
+        `option_${i}_correct`, `option${i}_correct`, `correct_${i}`, `is_correct_${i}`
+      ]);
+      const colorVal = getImportRowValue(row, [
+        `option_${i}_color`, `option${i}_color`, `color_${i}`
+      ]);
+      options.push({ text: textVal, is_correct: toBool(correctVal), color: normalizeHexColor(colorVal) });
+    }
+
+    if (type === 'true_false' && !options.length) {
+      options = [
+        { text: 'True', is_correct: true },
+        { text: 'False', is_correct: false }
+      ];
+    }
+    if (type === 'rating' && !options.length) {
+      for (let r = 1; r <= 5; r++) options.push({ text: String(r) });
+    }
+    if (['multiple_choice', 'poll', 'checkbox'].includes(type) && options.length < 2) return;
+    options = ensureUniqueOptionColors(options);
+
+    out.push({
+      quiz_id: null,
+      type,
+      text,
+      image_url: imageUrl,
+      time_limit: Number.isFinite(timeLimit) ? timeLimit : 60,
+      points: Number.isFinite(points) ? points : (type === 'short_answer' ? 5 : 0),
+      order_num: Number.isFinite(order) ? order : (idx + 1),
+      options
+    });
+  });
+  return out;
+}
+
+function parseQuizMetaFromWorkbook(wb) {
+  const metaSheet = wb.Sheets['Quiz'] || wb.Sheets['Meta'] || null;
+  const meta = { title: '', description: '', category: 'General' };
+  if (!metaSheet) return meta;
+  const rows = XLSX.utils.sheet_to_json(metaSheet, { defval: '' });
+  rows.forEach(r => {
+    const keyRaw = String(r.field || r.key || '').trim().toLowerCase();
+    const val = String(r.value || '').trim();
+    if (!keyRaw) return;
+    if (keyRaw === 'title') meta.title = val;
+    else if (keyRaw === 'description') meta.description = val;
+    else if (keyRaw === 'category') meta.category = val || 'General';
+  });
+  return meta;
+}
+
+function getQuestionsSheetFromWorkbook(wb) {
+  if (wb.Sheets['Questions']) return wb.Sheets['Questions'];
+  return wb.Sheets[wb.SheetNames.find(n => n !== 'Quiz' && n !== 'Meta')] || null;
+}
+
+function gasRunAsync(fnName, args) {
+  return new Promise((resolve, reject) => {
+    gasRun(fnName, args, resolve, reject);
+  });
+}
+
+async function handleQuizImportFile(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+
+  try {
+    showLoading('กำลังอ่านไฟล์ Excel...');
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: 'array' });
+    const qSheet = getQuestionsSheetFromWorkbook(wb);
+    if (!qSheet) throw new Error('ไม่พบชีท Questions');
+
+    const rows = XLSX.utils.sheet_to_json(qSheet, { defval: '' });
+    const questions = parseQuestionsFromExcelRows(rows);
+    if (!questions.length) throw new Error('ไม่พบคำถามที่นำเข้าได้');
+
+    const meta = parseQuizMetaFromWorkbook(wb);
+    const baseName = file.name.replace(/\.[^.]+$/, '');
+    const quizTitle = (meta.title || baseName || 'Imported Quiz').trim();
+
+    showLoading('กำลังสร้าง Quiz จากไฟล์...');
+    const createRes = await gasRunAsync('createQuiz', [{
+      title: quizTitle,
+      description: meta.description || `Imported from ${file.name}`,
+      category: meta.category || 'General',
+      host_id: 'admin'
+    }]);
+    if (!createRes.success || !createRes.id) throw new Error(createRes.error || 'สร้าง Quiz ไม่สำเร็จ');
+
+    for (let i = 0; i < questions.length; i++) {
+      const q = { ...questions[i], quiz_id: createRes.id, order_num: i + 1 };
+      const saveRes = await gasRunAsync('saveQuestion', [q]);
+      if (!saveRes.success) throw new Error(saveRes.error || `บันทึกคำถามข้อ ${i + 1} ไม่สำเร็จ`);
+    }
+
+    hideLoading();
+    showToast(`Import สำเร็จ: ${quizTitle} (${questions.length} คำถาม)`, 'success', 5000);
+    loadQuizList();
+  } catch (err) {
+    hideLoading();
+    showToast('Import Excel ล้มเหลว: ' + (err.message || err), 'error');
+  }
+}
+
+async function exportQuizExcel(quizId) {
+  try {
+    showLoading('กำลังเตรียมไฟล์ Excel...');
+    const res = await gasRunAsync('getQuizDetail', [quizId]);
+    if (!res.success || !res.data) throw new Error(res.error || 'โหลดข้อมูล Quiz ไม่สำเร็จ');
+
+    const qz = res.data;
+    const wb = XLSX.utils.book_new();
+
+    const quizRows = [
+      { field: 'title', value: qz.title || '' },
+      { field: 'description', value: qz.description || '' },
+      { field: 'category', value: qz.category || 'General' }
+    ];
+    const wsMeta = XLSX.utils.json_to_sheet(quizRows);
+    XLSX.utils.book_append_sheet(wb, wsMeta, 'Quiz');
+
+    const questions = (qz.questions || []).slice().sort((a, b) => (a.order_num || 0) - (b.order_num || 0));
+    const qRows = questions.map((q, idx) => {
+      const opts = ensureUniqueOptionColors((q.options || []).map(o => ({ ...o })));
+      const row = {
+        order_num: idx + 1,
+        type: q.type || 'multiple_choice',
+        text: q.text || '',
+        image_url: q.image_url || '',
+        time_limit: q.time_limit || 60,
+        points: q.points || 0
+      };
+      for (let i = 0; i < 6; i++) {
+        const o = opts[i];
+        row[`option_${i + 1}_text`] = o ? (o.text || '') : '';
+        row[`option_${i + 1}_correct`] = o ? (o.is_correct ? 'TRUE' : 'FALSE') : '';
+        row[`option_${i + 1}_color`] = o ? (normalizeHexColor(o.color) || '') : '';
+      }
+      return row;
+    });
+
+    const wsQ = XLSX.utils.json_to_sheet(qRows.length ? qRows : [{
+      order_num: 1, type: 'multiple_choice', text: '', image_url: '', time_limit: 60, points: 0,
+      option_1_text: '', option_1_correct: '', option_1_color: '',
+      option_2_text: '', option_2_correct: '', option_2_color: ''
+    }]);
+    XLSX.utils.book_append_sheet(wb, wsQ, 'Questions');
+
+    const safeName = (qz.title || 'Quiz').replace(/[/\\?%*:|"<>]/g, '-');
+    XLSX.writeFile(wb, `Quiz_${safeName}.xlsx`);
+    hideLoading();
+    showToast('Export Excel สำเร็จ!', 'success');
+  } catch (err) {
+    hideLoading();
+    showToast('Export Excel ล้มเหลว: ' + (err.message || err), 'error');
+  }
+}
 function createNewQuiz() {
   const title = document.getElementById('cq-title').value.trim();
   if (!title) { showToast('กรุณาใส่ชื่อ Quiz', 'error'); return; }
@@ -778,6 +1062,8 @@ function saveQuestion() {
     for (let i = min; i <= max; i++) options.push({ text: String(i) });
   }
 
+  if (options.length) options = ensureUniqueOptionColors(options);
+
   const existingIndex = editingQuestionId
     ? currentQuestions.findIndex(x => x.id === editingQuestionId)
     : -1;
@@ -944,10 +1230,17 @@ function viewReport(sessionId) {
         </div>
       </div>
       <div class="card" ${ani} style="animation-delay: 0.7s; margin-top:16px;">
-        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">📊 กราฟความถูกต้องรายข้อ (Bar)</h3>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">📊 กราฟรายข้อ (ความถูกต้อง / อัตราการส่งข้อความ)</h3>
         <div style="position:relative; height:250px; width:100%">
           <canvas id="questionBarChart"></canvas>
         </div>
+      </div>
+      <div class="card" ${ani} style="animation-delay: 0.8s; margin-top:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+          <h3 style="font-size:15px;font-weight:700;margin:0">☁️ Word Cloud (คำตอบข้อความ)</h3>
+          <div class="text-sm text-muted">ข้อความทั้งหมด: ${d.textMessageCount || 0} | ผู้ส่งข้อความ: ${d.textUsersCount || 0} คน</div>
+        </div>
+        <div id="report-wordcloud" style="min-height:260px"></div>
       </div>`;
       
       // Render Chart
@@ -981,15 +1274,19 @@ function viewReport(sessionId) {
         const barCtx = document.getElementById('questionBarChart');
         if (barCtx) {
           if (reportsBarInst) reportsBarInst.destroy();
+          const labels = d.questionSummary.map((q, i) => {
+            const base = 'ข้อ ' + (i + 1);
+            return q.isTextType ? `${base} (ส่งข้อความ ${q.textSubmitters || 0} คน)` : base;
+          });
           reportsBarInst = new Chart(barCtx, {
             type: 'bar',
             data: {
-              labels: d.questionSummary.map((_, i) => 'ข้อ ' + (i + 1)),
+              labels,
               datasets: [{
-                label: 'ความถูกต้อง (%)',
-                data: d.questionSummary.map(q => q.accuracy),
-                backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                borderColor: '#3b82f6',
+                label: 'เปอร์เซ็นต์รายข้อ',
+                data: d.questionSummary.map(q => q.chartValue ?? q.accuracy ?? 0),
+                backgroundColor: d.questionSummary.map(q => q.isTextType ? 'rgba(245, 158, 11, 0.8)' : 'rgba(59, 130, 246, 0.8)'),
+                borderColor: d.questionSummary.map(q => q.isTextType ? '#f59e0b' : '#3b82f6'),
                 borderWidth: 1,
                 borderRadius: 4
               }]
@@ -1002,9 +1299,36 @@ function viewReport(sessionId) {
                 y: { beginAtZero: true, max: 100, ticks: { color: '#cbd5e1' }, grid: { color: 'rgba(255,255,255,0.05)' } },
                 x: { ticks: { color: '#cbd5e1' }, grid: { display: false } }
               },
-              plugins: { legend: { display: false } }
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function(ctx) {
+                      const q = d.questionSummary[ctx.dataIndex] || {};
+                      if (q.isTextType) {
+                        return `ผู้ส่งข้อความ: ${q.textSubmitters || 0} คน | อัตราส่ง: ${q.textSubmitRate || 0}%`;
+                      }
+                      return `ความถูกต้อง: ${q.accuracy || 0}%`;
+                    }
+                  }
+                }
+              }
             }
           });
+        }
+
+        const wcEl = document.getElementById('report-wordcloud');
+        if (wcEl) {
+          const words = Array.isArray(d.wordCloudData) ? d.wordCloudData : [];
+          if (!words.length) {
+            wcEl.innerHTML = '<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">ยังไม่มีคำตอบข้อความ</div></div>';
+          } else if (typeof renderWordCloud === 'function') {
+            renderWordCloud('report-wordcloud', words);
+          } else {
+            wcEl.innerHTML = words.slice(0, 20).map(w =>
+              `<span class="badge badge-blue" style="margin:4px;display:inline-flex">${w.text} (${w.count})</span>`
+            ).join('');
+          }
         }
       }, 50);
   });
@@ -1016,88 +1340,292 @@ document.addEventListener('click', () => {
   if (em) em.style.display = 'none';
 });
 
-function exportReport(type) {
+function getReportRenderOptions(element, bodyStyle) {
+  return {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: bodyStyle.backgroundColor || '#0a0f1e',
+    windowWidth: Math.max(element.scrollWidth, element.clientWidth),
+    windowHeight: Math.max(element.scrollHeight, element.clientHeight),
+    scrollX: 0,
+    scrollY: 0
+  };
+}
+
+async function captureElementCanvas(element, renderOpts) {
+  if (typeof window.html2canvas === 'function') {
+    return window.html2canvas(element, renderOpts);
+  }
+  if (typeof window.html2pdf === 'function') {
+    return window.html2pdf().set({ html2canvas: renderOpts }).from(element).toCanvas().get('canvas');
+  }
+  throw new Error('ไม่พบ html2canvas/html2pdf');
+}
+
+function isCanvasCorsError(err) {
+  const msg = String((err && err.message) || err || '').toLowerCase();
+  return msg.includes('tainted') || msg.includes('cross-origin') || msg.includes('cors') || msg.includes('securityerror');
+}
+
+function getPptxCtor() {
+  return window.PptxGenJS || window.pptxgen || window.pptxgenjs || null;
+}
+
+function hasJsZipLib() {
+  return !!window.JSZip;
+}
+
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-src="${src}"]`) || document.querySelector(`script[src="${src}"]`);
+    if (existing && existing.dataset.loaded === 'true') {
+      resolve();
+      return;
+    }
+    const s = existing || document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.dataset.src = src;
+    s.crossOrigin = 'anonymous';
+    if (!existing) document.head.appendChild(s);
+    s.onload = () => {
+      s.dataset.loaded = 'true';
+      resolve();
+    };
+    s.onerror = () => reject(new Error(`โหลดสคริปต์ไม่สำเร็จ: ${src}`));
+  });
+}
+
+async function ensurePptxDependencies() {
+  let ctor = getPptxCtor();
+  if (ctor) return ctor;
+
+  if (!hasJsZipLib()) {
+    const jsZipSources = [
+      'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+      'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
+    ];
+    let lastErr = null;
+    for (const src of jsZipSources) {
+      try {
+        await loadScriptOnce(src);
+        if (hasJsZipLib()) break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (!hasJsZipLib()) throw (lastErr || new Error('ไม่พบ JSZip'));
+  }
+
+  const pptxSources = [
+    'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.min.js',
+    'https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.min.js'
+  ];
+  let lastErr = null;
+  for (const src of pptxSources) {
+    try {
+      await loadScriptOnce(src);
+      ctor = getPptxCtor();
+      if (ctor) return ctor;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw (lastErr || new Error('ไม่พบไลบรารี PptxGenJS'));
+}
+
+async function runExportWithFallbackImage(element, runFn, renderOpts) {
+  try {
+    await runFn(renderOpts);
+  } catch (err) {
+    if (!isCanvasCorsError(err)) throw err;
+    const prevBgImage = element.style.backgroundImage;
+    try {
+      element.style.backgroundImage = 'none';
+      await runFn({ ...renderOpts, useCORS: false });
+    } finally {
+      element.style.backgroundImage = prevBgImage;
+    }
+  }
+}
+
+async function exportReportPdf(element, fileName, renderOpts) {
+  if (typeof window.html2pdf === 'function') {
+    await window.html2pdf()
+      .set({
+        filename: fileName,
+        margin: [6, 6, 6, 6],
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: renderOpts,
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      })
+      .from(element)
+      .save();
+    return;
+  }
+
+  const canvas = await captureElementCanvas(element, renderOpts);
+  const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if (!jsPDFCtor) throw new Error('ไม่พบ jsPDF');
+
+  const pdf = new jsPDFCtor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const ratio = Math.min(pageW / canvas.width, pageH / canvas.height);
+  const w = canvas.width * ratio;
+  const h = canvas.height * ratio;
+  const x = (pageW - w) / 2;
+  const y = (pageH - h) / 2;
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.98), 'JPEG', x, y, w, h);
+  pdf.save(fileName);
+}
+
+async function exportReportPpt(element, fileName, title, d, renderOpts) {
+  const PptxCtor = await ensurePptxDependencies();
+
+  const pres = new PptxCtor();
+  pres.layout = 'LAYOUT_WIDE';
+  pres.author = 'D.I.Y. Teamwork';
+  pres.subject = `Report: ${title}`;
+
+  const slide = pres.addSlide();
+  slide.background = { color: '0A0F1E' };
+  slide.addText(`รายงานผล: ${title}`, { x: 0.4, y: 0.2, w: 12.4, h: 0.45, fontSize: 20, bold: true, color: 'FFFFFF' });
+  slide.addText(`ผู้เข้าร่วม ${d.participantCount || 0} คน | คำถาม ${Array.isArray(d.questionSummary) ? d.questionSummary.length : 0} ข้อ`, {
+    x: 0.4,
+    y: 0.65,
+    w: 12.4,
+    h: 0.32,
+    fontSize: 12,
+    color: '94A3B8'
+  });
+
+  const canvas = await captureElementCanvas(element, renderOpts);
+  const imgData = canvas.toDataURL('image/png', 1.0);
+
+  const drawX = 0.35;
+  const drawY = 1.02;
+  const maxW = 12.63;
+  const maxH = 6.2;
+  const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
+  const w = canvas.width * ratio;
+  const h = canvas.height * ratio;
+  const x = drawX + (maxW - w) / 2;
+  const y = drawY + (maxH - h) / 2;
+
+  slide.addShape(pres.ShapeType.roundRect, {
+    x: drawX - 0.02,
+    y: drawY - 0.02,
+    w: maxW + 0.04,
+    h: maxH + 0.04,
+    line: { color: '1E293B', pt: 1 },
+    fill: { color: '0F172A' },
+    radius: 0.08
+  });
+  slide.addImage({ data: imgData, x, y, w, h });
+
+  await pres.writeFile({ fileName });
+}
+
+async function exportReport(type) {
   const em = document.getElementById('exportMenu');
   if (em) em.style.display = 'none';
-  if (!window.currentReportData) return showToast('ไม่มีข้อมูล Report', 'error');
+  if (!window.currentReportData) {
+    showToast('ไม่มีข้อมูล Report', 'error');
+    return;
+  }
 
   const d = window.currentReportData;
   const title = (d.session && d.session.quizTitle ? d.session.quizTitle : 'Report').replace(/[/\\?%*:|"<>]/g, '-');
-  
-  showLoading('กำลังเตรียมไฟล์...');
-  
-  setTimeout(() => {
-    try {
-      if (type === 'excel') {
-        const wb = XLSX.utils.book_new();
-        const lbData = d.leaderboard.map((p, i) => ({
-          'อันดับ': i + 1,
-          'ชื่อผู้เล่น': p.name,
-          'คะแนนรวม': p.totalScore,
-        }));
-        const ws1 = XLSX.utils.json_to_sheet(lbData);
-        XLSX.utils.book_append_sheet(wb, ws1, "Leaderboard");
+  const element = document.getElementById('reports-content');
+  if (!element) {
+    showToast('ไม่พบส่วนรายงาน', 'error');
+    return;
+  }
 
-        const sumData = d.questionSummary.map((q, i) => ({
-          'ข้อที่': q.order_num,
-          'คำถาม': q.text,
-          'ประเภท': q.type,
-          'ตอบถูก (คน)': q.correct,
-          'ความแม่นยำ (%)': q.accuracy
-        }));
-        const ws2 = XLSX.utils.json_to_sheet(sumData);
-        XLSX.utils.book_append_sheet(wb, ws2, "Questions Summary");
+  const menuBtn = element.querySelector('.dropdown');
+  const prevMenuDisplay = menuBtn ? menuBtn.style.display : '';
+  const bodyStyle = getComputedStyle(document.body);
+  const prevStyle = {
+    backgroundColor: element.style.backgroundColor,
+    backgroundImage: element.style.backgroundImage,
+    backgroundSize: element.style.backgroundSize,
+    backgroundPosition: element.style.backgroundPosition,
+    backgroundRepeat: element.style.backgroundRepeat
+  };
 
-        XLSX.writeFile(wb, `Report_${title}.xlsx`);
-        showToast('Export Excel สำเร็จ!', 'success');
-      } 
-      else if (type === 'pdf') {
-        const element = document.getElementById('reports-content');
-        const menuBtn = element.querySelector('.dropdown');
-        if(menuBtn) menuBtn.style.display = 'none';
-        
-        const opt = {
-          margin:       10,
-          filename:     `Report_${title}.pdf`,
-          image:        { type: 'jpeg', quality: 0.98 },
-          html2canvas:  { scale: 2, useCORS: true },
-          jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(element).save().then(()=>{
-          if(menuBtn) menuBtn.style.display = 'block';
-          showToast('Export PDF สำเร็จ!', 'success');
-        });
-        return hideLoading();
-      }
-      else if (type === 'ppt') {
-        let pres = new pptxgen();
-        pres.layout = 'LAYOUT_16x9';
+  try {
+    showLoading('กำลังเตรียมไฟล์...');
+    if (menuBtn) menuBtn.style.display = 'none';
 
-        let slide = pres.addSlide();
-        slide.addText('รายงานผล: ' + title, { x:1, y:1, w:'80%', h:1, fontSize: 32, bold: true, color:'363636' });
-        slide.addText('ผู้เข้าร่วมทั้งหมด: ' + d.participantCount + ' คน', { x:1, y:2.5, w:'80%', h:1, fontSize: 24, color:'666666' });
+    // ใช้ background เดียวกับ Dashboard ปัจจุบัน
+    element.style.backgroundColor = bodyStyle.backgroundColor;
+    element.style.backgroundImage = bodyStyle.backgroundImage;
+    element.style.backgroundSize = bodyStyle.backgroundSize;
+    element.style.backgroundPosition = bodyStyle.backgroundPosition;
+    element.style.backgroundRepeat = bodyStyle.backgroundRepeat;
 
-        let slide2 = pres.addSlide();
-        slide2.addText('🏆 Leaderboard (Top 10)', { x:1, y:0.5, w:'80%', h:1, fontSize: 24, bold: true });
-        let rows = [['อันดับ', 'ชื่อ', 'คะแนน']];
-        d.leaderboard.slice(0, 10).forEach((p,i) => {
-          rows.push([i+1, p.name, p.totalScore]);
-        });
-        slide2.addTable(rows, { x: 1, y: 1.5, w: 8, fill: 'F7F7F7', fontSize: 14, color:'363636' });
+    if (type === 'excel') {
+      const wb = XLSX.utils.book_new();
+      const lbData = d.leaderboard.map((p, i) => ({
+        'อันดับ': i + 1,
+        'ชื่อผู้เล่น': p.name,
+        'คะแนนรวม': p.totalScore,
+      }));
+      const ws1 = XLSX.utils.json_to_sheet(lbData);
+      XLSX.utils.book_append_sheet(wb, ws1, "Leaderboard");
 
-        pres.writeFile({ fileName: `Report_${title}.pptx` }).then(() => {
-          showToast('Export PPT สำเร็จ!', 'success');
-        }).catch(err => {
-          console.error(err);
-          showToast('Export PPT ล้มเหลว', 'error');
-        });
-      }
-    } catch(e) {
-      console.error(e);
-      showToast('เกิดข้อผิดพลาดในการ Export', 'error');
+      const sumData = d.questionSummary.map((q) => ({
+        'ข้อที่': q.order_num,
+        'คำถาม': q.text,
+        'ประเภท': q.type,
+        'ตอบถูก (คน)': q.correct,
+        'ความแม่นยำ (%)': q.accuracy
+      }));
+      const ws2 = XLSX.utils.json_to_sheet(sumData);
+      XLSX.utils.book_append_sheet(wb, ws2, "Questions Summary");
+
+      XLSX.writeFile(wb, `Report_${title}.xlsx`);
+      showToast('Export Excel สำเร็จ!', 'success');
+      return;
     }
+
+    const renderOpts = getReportRenderOptions(element, bodyStyle);
+    if (type === 'pdf') {
+      await runExportWithFallbackImage(
+        element,
+        (opts) => exportReportPdf(element, `Report_${title}.pdf`, opts),
+        renderOpts
+      );
+      showToast('Export PDF สำเร็จ!', 'success');
+      return;
+    }
+
+    if (type === 'ppt') {
+      await runExportWithFallbackImage(
+        element,
+        (opts) => exportReportPpt(element, `Report_${title}.pptx`, title, d, opts),
+        renderOpts
+      );
+      showToast('Export PPT สำเร็จ!', 'success');
+      return;
+    }
+
+    showToast('ไม่รองรับรูปแบบไฟล์นี้', 'error');
+  } catch (e) {
+    console.error(e);
+    showToast(`Export ล้มเหลว: ${e.message || e}`, 'error');
+  } finally {
+    if (menuBtn) menuBtn.style.display = prevMenuDisplay;
+    element.style.backgroundColor = prevStyle.backgroundColor;
+    element.style.backgroundImage = prevStyle.backgroundImage;
+    element.style.backgroundSize = prevStyle.backgroundSize;
+    element.style.backgroundPosition = prevStyle.backgroundPosition;
+    element.style.backgroundRepeat = prevStyle.backgroundRepeat;
     hideLoading();
-  }, 500);
+  }
 }
 
 // ── SETTINGS ──
@@ -1110,12 +1638,16 @@ function loadSettings() {
       document.getElementById('s-color').value = s.app_color;
       document.documentElement.style.setProperty('--primary', s.app_color);
     }
+    document.getElementById('s-bg-color').value = s.background_color || '#0a0f1e';
+    document.getElementById('s-bg-image').value = s.background_image_url || '';
     if (s.fontFamily) document.getElementById('s-font').value = s.fontFamily;
     if (s.fontSize)   document.getElementById('s-font-size').value = s.fontSize;
     if (s.default_time_limit) document.getElementById('s-time').value = s.default_time_limit;
     if (s.leaderboard_enabled) document.getElementById('s-leaderboard').checked = s.leaderboard_enabled === 'true';
     if (s.music_enabled) document.getElementById('s-music').checked = s.music_enabled === 'true';
     if (s.music_volume) document.getElementById('s-music-vol').value = s.music_volume;
+    if (s.max_participants) document.getElementById('s-max-participants').value = s.max_participants;
+    if (s.auto_start_at_limit) document.getElementById('s-auto-start').checked = s.auto_start_at_limit === 'true';
   });
 }
 function saveAllSettings() {
@@ -1123,23 +1655,30 @@ function saveAllSettings() {
   gasRun('saveSettings', [{
     app_name:          document.getElementById('s-app-name').value,
     app_color:         document.getElementById('s-color').value,
+    background_color:  document.getElementById('s-bg-color').value,
+    background_image_url: document.getElementById('s-bg-image').value.trim(),
     fontFamily:        document.getElementById('s-font').value,
     fontSize:          document.getElementById('s-font-size').value,
     default_time_limit:document.getElementById('s-time').value,
     leaderboard_enabled: document.getElementById('s-leaderboard').checked ? 'true' : 'false',
     music_enabled:     document.getElementById('s-music').checked ? 'true' : 'false',
     music_volume:      document.getElementById('s-music-vol').value,
+    max_participants:  document.getElementById('s-max-participants').value,
+    auto_start_at_limit: document.getElementById('s-auto-start').checked ? 'true' : 'false',
     ...(document.getElementById('s-admin-pass').value ? { admin_password: document.getElementById('s-admin-pass').value } : {})
   }], res => {
     hideLoading();
     if (res.success) {
       showToast('บันทึกการตั้งค่าสำเร็จ!', 'success');
       // Apply immediately
-      const font = document.getElementById('s-font').value || "'Outfit', 'Sarabun', sans-serif";
-      document.documentElement.style.setProperty('--font-main', font);
-      document.documentElement.style.setProperty('--primary', document.getElementById('s-color').value);
-      if (document.getElementById('s-font-size').value) {
-        document.documentElement.style.fontSize = document.getElementById('s-font-size').value + 'px';
+      if (typeof window.applyGlobalSettingsToDocument === 'function') {
+        window.applyGlobalSettingsToDocument({
+          fontFamily: document.getElementById('s-font').value || "'Outfit', 'Sarabun', sans-serif",
+          fontSize: document.getElementById('s-font-size').value,
+          app_color: document.getElementById('s-color').value,
+          background_color: document.getElementById('s-bg-color').value,
+          background_image_url: document.getElementById('s-bg-image').value.trim()
+        });
       }
     }
     else showToast(res.error, 'error');
@@ -1149,24 +1688,50 @@ function saveAllSettings() {
 // ── MUSIC ──
 function loadMusicFiles() {
   showLoading('โหลดรายการเพลง...');
-  gasRun('getMusicFiles', null, res => {
-    hideLoading();
-    const list = document.getElementById('music-list');
-    if (!res.success || !res.data.length) {
-      list.innerHTML = '<div class="empty-state"><div class="empty-icon">🎵</div><div class="empty-title">ไม่พบไฟล์เพลงในระบบ</div><div class="empty-desc">อัปโหลดไฟล์จากเครื่อง หรือใช้ลิงก์ Google Drive ด้านบน</div></div>';
-      return;
-    }
-    list.innerHTML = res.data.map(f => `
-      <div class="card" style="display:flex;align-items:center;gap:12px">
-        <span style="font-size:24px">🎵</span>
-        <div style="flex:1">
-          <div style="font-weight:600;font-size:14px">${f.name}</div>
-          <div class="text-sm text-muted">${f.mimeType}</div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="selectMusic('${f.id}','${f.url}','${f.name}')">เลือก</button>
-        <button class="btn btn-ghost btn-sm" onclick="previewMusic('${f.url}')">▶</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteMusic('${f.name}')">🗑</button>
-      </div>`).join('');
+  gasRun('getSettings', null, settingsRes => {
+    const s = settingsRes.success ? settingsRes.data : {};
+    gasRun('getMusicFiles', null, res => {
+      hideLoading();
+      const list = document.getElementById('music-list');
+      const display = document.getElementById('current-sounds-display');
+      if (display) display.style.display = 'block';
+
+      if (!res.success || !res.data.length) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">🎵</div><div class="empty-title">ไม่พบไฟล์เพลงในระบบ</div><div class="empty-desc">อัปโหลดไฟล์จากเครื่อง หรือใช้ลิงก์ Google Drive ด้านบน</div></div>';
+        return;
+      }
+
+      list.innerHTML = res.data.map(f => {
+        const isBgm = s.music_file_url === f.url;
+        const isCorrect = s.effect_correct_url === f.url;
+        const isWrong = s.effect_wrong_url === f.url;
+        
+        return `
+        <div class="card" style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:24px">🔊</span>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${f.name}</div>
+            <div class="text-sm text-muted">${f.mimeType}</div>
+          </div>
+          <div style="display:flex; gap:4px;">
+            <button class="btn ${isBgm ? 'btn-blue' : 'btn-primary'} btn-sm" onclick="selectMusic('${f.id}','${f.url}','${f.name}', 'bgm')">BGM</button>
+            <button class="btn ${isCorrect ? 'btn-blue' : 'btn-primary'} btn-sm" onclick="selectMusic('${f.id}','${f.url}','${f.name}', 'correct')">Correct</button>
+            <button class="btn ${isWrong ? 'btn-blue' : 'btn-primary'} btn-sm" onclick="selectMusic('${f.id}','${f.url}','${f.name}', 'wrong')">Wrong</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="previewMusic('${f.url}')">▶</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteMusic('${f.name}')">🗑</button>
+        </div>`;
+      }).join('');
+
+      // Update current names indicators
+      const findNameByUrl = (url) => {
+        const found = res.data.find(f => f.url === url);
+        return found ? found.name : (url ? 'External/URL' : '- ไม่ได้เลือก -');
+      };
+      document.getElementById('cur-bgm-name').textContent = findNameByUrl(s.music_file_url);
+      document.getElementById('cur-correct-name').textContent = findNameByUrl(s.effect_correct_url);
+      document.getElementById('cur-wrong-name').textContent = findNameByUrl(s.effect_wrong_url);
+    });
   });
 }
 
@@ -1199,7 +1764,8 @@ function uploadLocalMusic() {
 function addDriveMusic() {
   const url = document.getElementById('music-drive-url').value.trim();
   if (!url) return showToast('กรุณาวางลิงก์ก่อน', 'warning');
-  selectMusic('drive-' + Date.now(), url, 'Google Drive Audio');
+  // Default to BGM for external links via direct selection
+  selectMusic('drive-' + Date.now(), url, 'URL/External Sound', 'bgm');
   document.getElementById('music-drive-url').value = '';
 }
 
@@ -1229,9 +1795,20 @@ function previewMusic(url) {
     previewAudio.play().catch(() => showToast('ไม่สามารถเล่นได้ (Google Drive อาจจำกัด)', 'warning'));
   }
 }
-function selectMusic(id, url, name) {
-  gasRun('saveSettings', [{ music_file_id: id, music_file_url: url }], res => {
-    if (res.success) showToast(`เลือก "${name}" เป็นเพลงประกอบแล้ว`, 'success');
+function selectMusic(id, url, name, type) {
+  const map = {
+    bgm:     { music_file_id: id, music_file_url: url },
+    correct: { effect_correct_url: url },
+    wrong:   { effect_wrong_url: url }
+  };
+  const settings = map[type || 'bgm'];
+  const typeLabel = type === 'bgm' ? 'เพลงประกอบ (BGM)' : type === 'correct' ? 'เสียงตอบถูก' : 'เสียงตอบผิด';
+
+  gasRun('saveSettings', [settings], res => {
+    if (res.success) {
+      showToast(`เลือก "${name}" เป็น${typeLabel}แล้ว`, 'success');
+      loadMusicFiles(); // Refresh indicator
+    }
   });
 }
 

@@ -3,6 +3,7 @@
 // ============================================================
 const express = require('express');
 const { db } = require('../db');
+const QRCode = require('qrcode');
 const router = express.Router();
 
 function generateId(prefix) {
@@ -31,6 +32,32 @@ function sanitizeForPlayer(q, showAnswer = false) {
     })) : []
   };
 }
+
+// ── GET /api/sessions/qr?text=...&size=... ─────────────────
+router.get('/qr', async (req, res) => {
+  try {
+    const text = String(req.query.text || '').trim();
+    if (!text) return res.status(400).json({ success: false, error: 'text query is required' });
+
+    const requestedSize = parseInt(req.query.size, 10);
+    const size = Number.isFinite(requestedSize)
+      ? Math.max(120, Math.min(1024, requestedSize))
+      : 256;
+
+    const png = await QRCode.toBuffer(text, {
+      type: 'png',
+      width: size,
+      margin: 1,
+      color: { dark: '#0f172aff', light: '#ffffffff' }
+    });
+
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(png);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // ── GET /api/sessions/history ──────────────────────────────
 router.get('/history', (req, res) => {
@@ -147,6 +174,16 @@ router.post('/join', (req, res) => {
     ).get(session.id, playerName);
     if (existing) {
       return res.json({ success: true, participantId: existing.id, sessionId: session.id, rejoined: true });
+    }
+
+    // Check participant limit
+    const maxParticipantsRow = db.prepare("SELECT value FROM Settings WHERE key='max_participants'").get();
+    const maxParticipants = parseInt(maxParticipantsRow ? maxParticipantsRow.value : '0', 10);
+    if (maxParticipants > 0) {
+      const currentCount = db.prepare('SELECT COUNT(*) as c FROM Participants WHERE session_id=?').get(session.id).c;
+      if (currentCount >= maxParticipants) {
+        return res.json({ success: false, error: 'ขออภัย จำนวนคนเต็มแล้ว (Limit reached)' });
+      }
     }
 
     const pId = generateId('PT');
@@ -413,6 +450,11 @@ router.get('/:id/report', (req, res) => {
     const participants = db.prepare('SELECT * FROM Participants WHERE session_id=?').all(sessionId);
     const responses    = db.prepare('SELECT * FROM Responses WHERE session_id=?').all(sessionId);
     const questions    = db.prepare('SELECT * FROM Questions WHERE quiz_id=? ORDER BY order_num').all(session.quiz_id);
+    const participantCount = participants.length;
+    const textTypes = new Set(['word_cloud', 'open_text', 'short_answer', 'q_and_a']);
+    const wordCloudMap = new Map();
+    const textUserSet = new Set();
+    let textMessageCount = 0;
 
     // Build leaderboard
     const leaderboard = participants.map(p => {
@@ -423,12 +465,63 @@ router.get('/:id/report', (req, res) => {
     }).sort((a, b) => b.totalScore - a.totalScore);
 
     const questionSummary = questions.map(q => {
-      const qRes    = responses.filter(r => r.question_id === q.id);
+      const qRes = responses.filter(r => r.question_id === q.id);
       const correct = qRes.filter(r => r.is_correct === 1).length;
-      return { id: q.id, text: q.text, answered: qRes.length, correct, accuracy: qRes.length ? Math.round(correct / qRes.length * 100) : 0 };
+      const answered = qRes.length;
+      const accuracy = answered ? Math.round(correct / answered * 100) : 0;
+      const isTextType = textTypes.has(q.type);
+      const textSubmitters = isTextType ? answered : 0;
+      const textSubmitRate = isTextType && participantCount
+        ? Math.round((answered / participantCount) * 100)
+        : 0;
+      const chartValue = isTextType ? textSubmitRate : accuracy;
+
+      if (isTextType) {
+        qRes.forEach(r => {
+          const raw = String(r.answer || '').trim();
+          if (!raw) return;
+          textMessageCount += 1;
+          textUserSet.add(r.participant_id);
+
+          const normalized = raw.replace(/\s+/g, ' ').trim();
+          if (!normalized) return;
+          wordCloudMap.set(normalized, (wordCloudMap.get(normalized) || 0) + 1);
+        });
+      }
+
+      return {
+        id: q.id,
+        order_num: q.order_num,
+        type: q.type,
+        text: q.text,
+        answered,
+        correct,
+        accuracy,
+        isTextType,
+        textSubmitters,
+        textSubmitRate,
+        chartValue
+      };
     });
 
-    res.json({ success: true, data: { session, quizTitle: quiz ? quiz.title : '', participantCount: participants.length, leaderboard, questionSummary } });
+    const wordCloudData = Array.from(wordCloudMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 100)
+      .map(([text, count]) => ({ text, count }));
+
+    res.json({
+      success: true,
+      data: {
+        session,
+        quizTitle: quiz ? quiz.title : '',
+        participantCount,
+        leaderboard,
+        questionSummary,
+        wordCloudData,
+        textMessageCount,
+        textUsersCount: textUserSet.size
+      }
+    });
   } catch (err) {
     res.json({ success: false, error: err.message });
   }

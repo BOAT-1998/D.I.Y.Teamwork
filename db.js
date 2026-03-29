@@ -82,7 +82,10 @@ async function initDB() {
     ['app_name','D.I.Y. Teamwork'],['app_color','#10b981'],['app_logo',''],
     ['default_time_limit','30'],['default_points','10'],['music_enabled','true'],
     ['music_file_id',''],['leaderboard_enabled','true'],['admin_password','admin1234'],
-    ['host_password_enabled','false'],['host_password','']
+    ['host_password_enabled','false'],['host_password',''],
+    ['background_color','#0a0f1e'],['background_image_url',''],
+    ['max_participants','0'],['auto_start_at_limit','false'],
+    ['effect_correct_url',''],['effect_wrong_url','']
   ];
   defaults.forEach(([k,v]) => {
     _db.run('INSERT OR IGNORE INTO Settings (key,value,updated_at) VALUES (?,?,?)', [k,v,now]);

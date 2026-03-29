@@ -9,24 +9,56 @@
   }
 })();
 
+window.applyGlobalSettingsToDocument = function(settings = {}) {
+  if (settings.fontFamily) {
+    document.documentElement.style.setProperty('--font-main', settings.fontFamily);
+  }
+  if (settings.fontSize) {
+    document.documentElement.style.fontSize = settings.fontSize + 'px';
+  }
+  if (settings.app_color) {
+    document.documentElement.style.setProperty('--primary', settings.app_color);
+  }
+  if (settings.music_volume !== undefined && settings.music_volume !== '') {
+    const vol = parseFloat(settings.music_volume);
+    if (!Number.isNaN(vol)) window.globalMusicVolume = vol;
+  }
+  if (settings.effect_correct_url) window.effectCorrectUrl = settings.effect_correct_url;
+  if (settings.effect_wrong_url)   window.effectWrongUrl   = settings.effect_wrong_url;
+
+  const bgColor = String(settings.background_color || '').trim();
+  const bgImage = String(settings.background_image_url || '').trim();
+  if (bgColor) {
+    document.documentElement.style.setProperty('--bg-dark', bgColor);
+  }
+
+  const body = document.body;
+  if (!body) return;
+  body.style.backgroundColor = bgColor || 'var(--bg-dark)';
+
+  if (bgImage) {
+    const safeUrl = bgImage.replace(/"/g, '\\"');
+    body.style.backgroundImage = `linear-gradient(rgba(5,10,20,0.5), rgba(5,10,20,0.5)), url("${safeUrl}")`;
+    body.style.backgroundSize = 'cover';
+    body.style.backgroundPosition = 'center';
+    body.style.backgroundRepeat = 'no-repeat';
+    body.style.backgroundAttachment = 'fixed';
+  } else {
+    body.style.backgroundImage = '';
+    body.style.backgroundSize = '';
+    body.style.backgroundPosition = '';
+    body.style.backgroundRepeat = '';
+    body.style.backgroundAttachment = '';
+  }
+};
+
 // ── GLOBAL STYLES (Font & Color) ──
 (async function applyGlobalSettings() {
   try {
     const res = await fetch('/api/settings');
     const json = await res.json();
     if (json.success && json.data) {
-      if (json.data.fontFamily) {
-        document.documentElement.style.setProperty('--font-main', json.data.fontFamily);
-      }
-      if (json.data.fontSize) {
-        document.documentElement.style.fontSize = json.data.fontSize + 'px';
-      }
-      if (json.data.app_color) {
-        document.documentElement.style.setProperty('--primary', json.data.app_color);
-      }
-      if (json.data.music_volume) {
-        window.globalMusicVolume = parseFloat(json.data.music_volume);
-      }
+      window.applyGlobalSettingsToDocument(json.data);
     }
   } catch(e) {}
 })();
@@ -285,6 +317,13 @@ window.MusicPlayer = {
     if (this._el) { this._el.pause(); this._el.remove(); this._el = null; }
     this.audio = null; this.fileId = null;
   }
+};
+
+window.playSoundEffect = function(url) {
+  if (!url) return;
+  const audio = new Audio(url);
+  audio.volume = window.globalMusicVolume !== undefined ? window.globalMusicVolume : 0.5;
+  audio.play().catch(err => console.warn('playSoundEffect error:', err));
 };
 
 /* ── COPY TO CLIPBOARD ── */
