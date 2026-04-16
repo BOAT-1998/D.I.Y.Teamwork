@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>D.I.Y. Teamwork — Host Panel</title>
 <link rel="stylesheet" href="/css/styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 body { background:var(--bg-dark); min-height:100vh; padding:0; }
 
@@ -72,6 +73,66 @@ body { background:var(--bg-dark); min-height:100vh; padding:0; }
 .participant-avatar {
   width:28px; height:28px; border-radius:8px; flex-shrink:0;
   display:flex; align-items:center; justify-content:center; font-size:14px;
+}
+.attendance-card {
+  margin:0 16px 16px;
+  padding:16px;
+  border-radius:var(--radius-lg);
+  background:rgba(255,255,255,0.03);
+  border:1px solid var(--border);
+}
+.attendance-stats {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin:12px 0;
+}
+.attendance-stat {
+  padding:10px;
+  border-radius:12px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.06);
+  text-align:center;
+}
+.attendance-stat-value { font-size:22px; font-weight:800; }
+.attendance-stat-label { font-size:11px; color:var(--text-muted); }
+.attendance-list {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  max-height:220px;
+  overflow-y:auto;
+}
+.attendance-item {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:8px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.05);
+  font-size:12px;
+}
+.attendance-item.joined { border-color:rgba(16,185,129,0.28); }
+.attendance-status {
+  flex-shrink:0;
+  font-size:11px;
+  font-weight:700;
+  padding:4px 8px;
+  border-radius:999px;
+}
+.attendance-status.joined {
+  color:#10b981;
+  background:rgba(16,185,129,0.12);
+}
+.attendance-status.missing {
+  color:#f59e0b;
+  background:rgba(245,158,11,0.12);
+}
+.attendance-status.unknown {
+  color:#f87171;
+  background:rgba(239,68,68,0.12);
 }
 
 /* Controls */
@@ -364,14 +425,20 @@ let state = {
   hostTimer:    null,   // countdown timer สำหรับ Host
   maxParticipants: 0,
   autoStartAtLimit: false,
-  isStarting: false
+  isStarting: false,
+  autoflow: false,
+  autoflowIntv: null,
+  autoflowTriggeredForQuestion: null,
+  attendance: null
 };
 
 // ── INIT ── รอ google.script.run พร้อมก่อน
 window.addEventListener('load', function() {
+  initAttendancePanel();
   loadQuizList();
   loadMusicSettings();
   loadHostSettings();
+  loadAttendanceSummary();
 });
 
 function loadHostSettings() {
@@ -381,6 +448,162 @@ function loadHostSettings() {
       state.autoStartAtLimit = res.data.auto_start_at_limit === 'true';
     }
   });
+}
+
+function initAttendancePanel() {
+  const participantsSection = document.querySelector('.participants-section');
+  if (!participantsSection || document.getElementById('attendance-card')) return;
+
+  const card = document.createElement('div');
+  card.id = 'attendance-card';
+  card.className = 'attendance-card';
+  card.innerHTML = `
+    <input type="file" id="employee-import-file" accept=".xlsx,.xls" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <div>
+        <div style="font-size:14px;font-weight:700">Employee Database</div>
+        <div id="attendance-import-meta" style="font-size:11px;color:var(--text-muted);margin-top:4px">ยังไม่ได้ import Excel</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="btn-employee-import">Import Excel</button>
+    </div>
+    <div class="attendance-stats">
+      <div class="attendance-stat">
+        <div class="attendance-stat-value" id="attendance-roster-count">0</div>
+        <div class="attendance-stat-label">ในไฟล์</div>
+      </div>
+      <div class="attendance-stat">
+        <div class="attendance-stat-value" id="attendance-joined-count" style="color:var(--primary)">0</div>
+        <div class="attendance-stat-label">เข้าร่วมแล้ว</div>
+      </div>
+      <div class="attendance-stat">
+        <div class="attendance-stat-value" id="attendance-missing-count" style="color:#f59e0b">0</div>
+        <div class="attendance-stat-label">ยังไม่เข้า</div>
+      </div>
+    </div>
+    <div id="attendance-list" class="attendance-list">
+      <div style="text-align:center;color:var(--text-muted);font-size:12px;padding:14px">อัปโหลด Excel เพื่อเริ่มตรวจสอบ</div>
+    </div>
+  `;
+
+  participantsSection.parentNode.insertBefore(card, participantsSection);
+
+  document.getElementById('btn-employee-import')?.addEventListener('click', triggerEmployeeImport);
+  document.getElementById('employee-import-file')?.addEventListener('change', handleEmployeeImportFile);
+}
+
+function triggerEmployeeImport() {
+  document.getElementById('employee-import-file')?.click();
+}
+
+async function handleEmployeeImportFile(event) {
+  const input = event.target;
+  const file = input?.files?.[0];
+  if (!file) return;
+
+  try {
+    showLoading('กำลังอ่านไฟล์พนักงาน...');
+    const rows = await window.parseEmployeeRosterFile(file);
+    const res = await apiCall('/api/database/import', 'POST', { rows });
+    if (!res.success) throw new Error(res.error || 'Import ไม่สำเร็จ');
+    showToast(`นำเข้าพนักงาน ${res.importedCount} รายการแล้ว`, 'success');
+    await loadAttendanceSummary();
+  } catch (err) {
+    showToast(err.message || 'Import Excel ไม่สำเร็จ', 'error');
+  } finally {
+    hideLoading();
+    if (input) input.value = '';
+  }
+}
+
+async function loadAttendanceSummary() {
+  try {
+    const dbRes = await apiCall('/api/database/status');
+    const dbInfo = dbRes.success ? dbRes.data : null;
+    let attendanceData = null;
+    if (state.sessionId) {
+      const attendanceRes = await apiCall(`/api/sessions/${state.sessionId}/attendance`);
+      if (attendanceRes.success) attendanceData = attendanceRes.data;
+    }
+    renderAttendanceSummary(dbInfo, attendanceData);
+  } catch (err) {
+    console.warn('loadAttendanceSummary error:', err);
+  }
+}
+
+function renderAttendanceSummary(dbInfo, attendanceData) {
+  const metaEl = document.getElementById('attendance-import-meta');
+  const rosterEl = document.getElementById('attendance-roster-count');
+  const joinedEl = document.getElementById('attendance-joined-count');
+  const missingEl = document.getElementById('attendance-missing-count');
+  const listEl = document.getElementById('attendance-list');
+  if (!metaEl || !rosterEl || !joinedEl || !missingEl || !listEl) return;
+
+  const rosterCount = attendanceData?.rosterCount ?? dbInfo?.rosterCount ?? 0;
+  const joinedCount = attendanceData?.joinedCount ?? 0;
+  const missingCount = attendanceData?.missingCount ?? 0;
+  const unknownCount = attendanceData?.unknownCount ?? 0;
+  const latestImportAt = attendanceData?.latestImportAt || dbInfo?.latestImportAt;
+
+  rosterEl.textContent = rosterCount;
+  joinedEl.textContent = joinedCount;
+  missingEl.textContent = missingCount;
+
+  if (!rosterCount) {
+    metaEl.textContent = 'ยังไม่ได้ import Excel';
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:14px">อัปโหลด Excel เพื่อเริ่มตรวจสอบ</div>';
+    return;
+  }
+
+  metaEl.textContent = latestImportAt
+    ? `อัปเดตล่าสุด ${new Date(latestImportAt).toLocaleString('th-TH')}`
+    : `พร้อมตรวจสอบ ${rosterCount} คน`;
+
+  if (!attendanceData) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:14px">เริ่ม Session เพื่อดูสถานะเข้า-ไม่เข้าแบบ realtime</div>';
+    return;
+  }
+
+  const missingItems = (attendanceData.employees || []).filter((item) => !item.joined).slice(0, 6);
+  const joinedItems = (attendanceData.employees || []).filter((item) => item.joined).slice(0, 4);
+  const unknownItems = (attendanceData.unknownParticipants || []).slice(0, 3);
+  const items = [
+    ...missingItems.map((item) => ({ ...item, type: 'missing' })),
+    ...unknownItems.map((item) => ({ ...item, type: 'unknown', employeeName: item.name, participantName: item.name })),
+    ...joinedItems.map((item) => ({ ...item, type: 'joined' }))
+  ];
+
+  if (!items.length) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:14px">ไม่มีข้อมูล attendance</div>';
+    return;
+  }
+
+  listEl.innerHTML = items.map((item) => {
+    const type = item.type || (item.joined ? 'joined' : 'missing');
+    const statusClass = type === 'joined' ? 'joined' : type === 'unknown' ? 'unknown' : 'missing';
+    const statusLabel = type === 'joined' ? 'เข้าร่วมแล้ว' : type === 'unknown' ? 'ไม่อยู่ในไฟล์' : 'ยังไม่เข้าร่วม';
+    const primaryName = item.employeeName || item.participantName || '-';
+    const secondary = [item.employeeCode || '-', item.branchCode || '-'].join(' • ');
+    const joinedBy = item.participantName && item.participantName !== item.employeeName
+      ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">ชื่อในระบบ: ${escapeHtml(item.participantName)}</div>`
+      : '';
+    return `
+      <div class="attendance-item ${statusClass}">
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:700">${escapeHtml(primaryName)}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escapeHtml(secondary)}</div>
+          ${joinedBy}
+        </div>
+        <div class="attendance-status ${statusClass}">${statusLabel}</div>
+      </div>
+    `;
+  }).join('');
+
+  if (unknownCount > 0) {
+    listEl.insertAdjacentHTML(
+      'beforeend',
+      `<div style="font-size:11px;color:#f87171;padding-top:6px">มีผู้เข้าร่วม ${unknownCount} คนที่ไม่พบในไฟล์ Excel</div>`
+    );
+  }
 }
 
 function loadQuizList() {
@@ -494,6 +717,7 @@ function pollSession() {
     const d = res.data;
     // อัปเดตผู้เข้าร่วม
     renderParticipants(d);
+    loadAttendanceSummary();
     
     let countText = d.participantCount;
     if (state.maxParticipants > 0) {
@@ -605,7 +829,7 @@ function renderParticipantList(list) {
       <div class="participant-avatar">${p.avatar || '👤'}</div>
       <div style="flex:1">
         <div style="font-weight:700">${escapeHtml(p.name || '')}</div>
-        <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(p.playerCode || '')}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(p.employeeCode || '-')} • ${escapeHtml(p.playerCode || '')}</div>
       </div>
     </div>`).join('');
 }
@@ -722,6 +946,43 @@ function renderLiveLeaderboard(players) {
       <div class="player-name">${p.name}</div>
       <div class="player-score">${p.totalScore}</div>
     </div>`).join('');
+}
+
+function clearAutoflowAdvance() {
+  if (state.autoflowIntv) {
+    clearInterval(state.autoflowIntv);
+    state.autoflowIntv = null;
+  }
+  const btnNext = document.getElementById('btn-next');
+  if (btnNext) btnNext.textContent = 'ถัดไป →';
+}
+
+function runAutoflowAdvance(reason) {
+  const questionKey = `${state.currentQIdx}:${reason}`;
+  if (!state.autoflow || state.autoflowIntv || state.autoflowTriggeredForQuestion === questionKey) {
+    return;
+  }
+
+  state.autoflowTriggeredForQuestion = questionKey;
+  state.hostTimer?.stop();
+  state.hostTimer = null;
+
+  if (!state.showAnswer) toggleShowAnswer();
+
+  let countdown = 5;
+  const btnNext = document.getElementById('btn-next');
+  if (!btnNext) return;
+  btnNext.textContent = `ถัดไป (${countdown}s)...`;
+
+  state.autoflowIntv = setInterval(() => {
+    countdown--;
+    if (countdown <= 0) {
+      clearAutoflowAdvance();
+      goNext();
+      return;
+    }
+    btnNext.textContent = `ถัดไป (${countdown}s)...`;
+  }, 1000);
 }
 
 function toggleShowAnswer() {
@@ -899,6 +1160,10 @@ function loadMusicSettings() {
   gasRun('getSettings', null, res => {
     if (!res.success) return;
     const s = res.data;
+    if (s.music_enabled === 'false') {
+      document.getElementById('music-bar').style.display = 'none';
+      return;
+    }
     const fileId  = s.music_file_id  || '';
     let fileUrl = s.music_file_url || '';
     if (!fileId && !fileUrl) fileUrl = '/uploads/music/bgm.mp3';
@@ -1030,6 +1295,160 @@ async function shareJoinQRCode() {
     </html>
   `);
   qrWindow.document.close();
+}
+
+function toggleAutoflow() {
+  state.autoflow = !state.autoflow;
+  const btn = document.getElementById('btn-autoflow');
+  const txt = document.getElementById('autoflow-text');
+  if (state.autoflow) {
+    btn.className = 'btn btn-primary';
+    txt.textContent = 'Autoflow: เปิด (ตอบครบแล้วเฉลยอัตโนมัติ)';
+  } else {
+    btn.className = 'btn btn-outline';
+    txt.textContent = 'Autoflow: ปิด';
+    clearAutoflowAdvance();
+  }
+}
+
+function goNext() {
+  clearAutoflowAdvance();
+  if (!state.sessionId) return;
+  state.hostTimer?.stop();
+  gasRun('nextQuestion', [state.sessionId], res => {
+    if (!res.success) {
+      showToast(res.error, 'error');
+      return;
+    }
+    state.currentQIdx = res.newIndex;
+    state.showAnswer = false;
+    state.autoflowTriggeredForQuestion = null;
+    gasRun('getLiveSessionData', [state.sessionId, null], res2 => {
+      if (!res2.success || !res2.data) {
+        showToast('โหลดข้อมูลไม่สำเร็จ', 'error');
+        return;
+      }
+      if (!res2.data.currentQuestion) {
+        showToast('คำถามหมดแล้ว กด "จบ Session" ได้เลย', 'warning', 5000);
+        return;
+      }
+      updateLiveView(res2.data);
+      startHostCountdown(res2.data.currentQuestion);
+    });
+  });
+}
+
+function pollResults() {
+  if (!state.sessionId) return;
+  const q = getCurrentQuestion();
+  if (!q) return;
+
+  gasRun('getQuestionResults', [state.sessionId, q.id], res => {
+    if (!res.success) return;
+    const d = res.data;
+    document.getElementById('ls-answered').textContent = d.answered;
+    document.getElementById('ls-total').textContent = d.total;
+    document.getElementById('ls-accuracy').textContent = d.accuracy + '%';
+    renderAnswerDist(d.answerCounts, q.options || []);
+
+    const opts = q.options || [];
+    opts.forEach((opt, i) => {
+      const el = document.getElementById(`host-opt-${i}`);
+      if (!el) return;
+      const count = d.answerCounts[opt.text] || 0;
+      const countEl = el.querySelector('.opt-vote-count');
+      if (countEl) countEl.textContent = count + ' คน';
+    });
+
+    if (state.autoflow && d.total > 0 && d.answered >= d.total) {
+      runAutoflowAdvance('all_answered');
+    }
+  });
+
+  gasRun('getLeaderboard', [state.sessionId], res => {
+    if (!res.success) return;
+    renderLiveLeaderboard(res.data.slice(0, 5));
+  });
+}
+
+function startHostCountdown(q) {
+  if (!q) return;
+  const total = Number(q.time_limit) || 0;
+  if (state.hostTimer) state.hostTimer.stop();
+  const wrap = document.getElementById('host-timer-wrap');
+  if (!wrap) return;
+  if (total <= 0) {
+    wrap.innerHTML = '';
+    return;
+  }
+
+  state.hostTimer = new CountdownTimer(
+    total,
+    (remaining, whole) => {
+      renderRingTimer('host-timer-wrap', remaining, whole);
+      const pct = remaining / whole;
+      const bar = document.getElementById('host-timer-bar');
+      if (bar) {
+        bar.style.width = (pct * 100) + '%';
+        bar.style.background = pct > 0.5 ? 'var(--primary)' : pct > 0.25 ? '#f59e0b' : '#ef4444';
+        bar.style.boxShadow = `0 0 8px ${pct > 0.5 ? 'var(--primary)' : pct > 0.25 ? '#f59e0b' : '#ef4444'}`;
+      }
+    },
+    () => {
+      const bar = document.getElementById('host-timer-bar');
+      if (bar) {
+        bar.style.width = '0%';
+        bar.style.background = '#ef4444';
+      }
+      if (state.autoflow) {
+        runAutoflowAdvance('timeout');
+      } else {
+        showToast('หมดเวลาแล้ว กด "ถัดไป" เพื่อไปข้อถัดไป', 'warning', 4000);
+      }
+    }
+  );
+  state.hostTimer.start();
+}
+
+function resetHost() {
+  clearAutoflowAdvance();
+  state.hostTimer?.stop();
+  state = {
+    sessionId: null,
+    quizId: null,
+    pin: null,
+    status: 'idle',
+    currentQIdx: 0,
+    totalQ: 0,
+    questions: [],
+    currentQuestion: null,
+    showAnswer: false,
+    poller: null,
+    resultPoller: null,
+    hostTimer: null,
+    maxParticipants: state.maxParticipants || 0,
+    autoStartAtLimit: state.autoStartAtLimit || false,
+    isStarting: false,
+    autoflow: false,
+    autoflowIntv: null,
+    autoflowTriggeredForQuestion: null,
+    attendance: null
+  };
+  document.getElementById('session-card').style.display = 'none';
+  document.getElementById('live-view').classList.remove('show');
+  document.getElementById('live-view').style.display = '';
+  document.getElementById('ended-view').style.display = 'none';
+  document.getElementById('quiz-selector').style.display = 'block';
+  document.getElementById('pre-start-area').style.display = 'none';
+  document.getElementById('controls-waiting').style.display = 'none';
+  document.getElementById('controls-active').style.display = 'none';
+  document.getElementById('controls-ended').style.display = 'none';
+  document.getElementById('status-dot').style.display = 'none';
+  document.getElementById('status-text').textContent = 'รอเริ่ม Session';
+  document.getElementById('join-url').textContent = '';
+  document.getElementById('join-qr-img').removeAttribute('src');
+  loadAttendanceSummary();
+  loadQuizList();
 }
 </script>
 </body>

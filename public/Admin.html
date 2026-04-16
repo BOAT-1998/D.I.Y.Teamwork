@@ -349,6 +349,11 @@ body { background:var(--bg-dark); display:flex; min-height:100vh; }
           <div class="form-group"><label class="form-label">ชื่อแอป</label><input class="form-input" id="s-app-name" type="text" placeholder="D.I.Y. Teamwork"></div>
           <div class="form-group"><label class="form-label">เวลาตอบค่าเริ่มต้น (วินาที)</label><input class="form-input" id="s-time" type="number" min="5" max="300" placeholder="30"></div>
           <div class="form-group"><label class="form-label">Admin Password</label><input class="form-input" id="s-admin-pass" type="password" placeholder="••••••••"></div>
+          <div class="setting-row">
+            <div class="setting-info"><div class="setting-label">เปิดใช้งาน Host Password</div><div class="setting-desc">ต้องใส่รหัสผ่านเมื่อเข้าหน้าผู้ควบคุม (Host)</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="s-host-pass-enabled"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="form-group"><label class="form-label">Host Password</label><input class="form-input" id="s-host-pass" type="text" placeholder="รหัสผ่านสำหรับ Host"></div>
           <div class="form-group"><label class="form-label">จำกัดจำนวนผู้เล่น (0 = ไม่จำกัด)</label><input class="form-input" id="s-max-participants" type="number" min="0" placeholder="0"></div>
           <div class="setting-row">
             <div class="setting-info"><div class="setting-label">เริ่มอัตโนมัติเมื่อครบจำนวน</div><div class="setting-desc">เริ่มเกมทันทีเมื่อคนเข้าครบตามที่กำหนด</div></div>
@@ -357,6 +362,10 @@ body { background:var(--bg-dark); display:flex; min-height:100vh; }
         </div>
         <div class="card settings-section">
           <h3>🔧 ฟีเจอร์</h3>
+          <div class="setting-row">
+            <div class="setting-info"><div class="setting-label">แสดงช่องรหัสพนักงาน</div><div class="setting-desc">ให้ผู้เข้าร่วมกรอกรหัสพนักงานก่อนเริ่ม</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="s-require-employee-code" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
           <div class="setting-row">
             <div class="setting-info"><div class="setting-label">Leaderboard</div><div class="setting-desc">แสดงกระดานคะแนน</div></div>
             <label class="toggle-switch"><input type="checkbox" id="s-leaderboard" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
@@ -397,7 +406,6 @@ body { background:var(--bg-dark); display:flex; min-height:100vh; }
           <input type="text" id="music-drive-url" class="form-input" placeholder="วางลิงก์ Google Drive, หรือ URL เพลง (.mp3) จากเว็บภายนอก..." style="flex:1">
           <button class="btn btn-primary" onclick="addDriveMusic()">ใช้ลิงก์นี้</button>
         </div>
-      </div>
       </div>
       
       <div class="card mb-16" id="current-sounds-display" style="background:rgba(16,185,129,0.05); border:1px dashed var(--primary); display:none;">
@@ -1648,6 +1656,9 @@ function loadSettings() {
     if (s.music_volume) document.getElementById('s-music-vol').value = s.music_volume;
     if (s.max_participants) document.getElementById('s-max-participants').value = s.max_participants;
     if (s.auto_start_at_limit) document.getElementById('s-auto-start').checked = s.auto_start_at_limit === 'true';
+    if (s.host_password_enabled) document.getElementById('s-host-pass-enabled').checked = s.host_password_enabled === 'true';
+    if (s.host_password) document.getElementById('s-host-pass').value = s.host_password;
+    if (s.require_employee_code) document.getElementById('s-require-employee-code').checked = s.require_employee_code === 'true';
   });
 }
 function saveAllSettings() {
@@ -1665,6 +1676,9 @@ function saveAllSettings() {
     music_volume:      document.getElementById('s-music-vol').value,
     max_participants:  document.getElementById('s-max-participants').value,
     auto_start_at_limit: document.getElementById('s-auto-start').checked ? 'true' : 'false',
+    host_password_enabled: document.getElementById('s-host-pass-enabled').checked ? 'true' : 'false',
+    host_password:     document.getElementById('s-host-pass').value,
+    require_employee_code: document.getElementById('s-require-employee-code').checked ? 'true' : 'false',
     ...(document.getElementById('s-admin-pass').value ? { admin_password: document.getElementById('s-admin-pass').value } : {})
   }], res => {
     hideLoading();
@@ -1677,7 +1691,9 @@ function saveAllSettings() {
           fontSize: document.getElementById('s-font-size').value,
           app_color: document.getElementById('s-color').value,
           background_color: document.getElementById('s-bg-color').value,
-          background_image_url: document.getElementById('s-bg-image').value.trim()
+          background_image_url: document.getElementById('s-bg-image').value.trim(),
+          music_enabled: document.getElementById('s-music').checked ? 'true' : 'false',
+          require_employee_code: document.getElementById('s-require-employee-code').checked ? 'true' : 'false'
         });
       }
     }
@@ -1828,6 +1844,172 @@ function doLogout() {
     window.location.href = '/login';
   }
 }
+
+function initDatabasePage() {
+  const systemSection = document.querySelectorAll('.sidebar .nav-section')[2];
+  if (systemSection && !document.getElementById('nav-database')) {
+    const nav = document.createElement('div');
+    nav.id = 'nav-database';
+    nav.className = 'nav-item';
+    nav.setAttribute('onclick', "showPage('database')");
+    nav.innerHTML = '<span class="icon">🗄️</span> Database';
+    const musicItem = systemSection.querySelector("[onclick=\"showPage('music')\"]");
+    systemSection.insertBefore(nav, musicItem || null);
+  }
+
+  if (!document.getElementById('page-database')) {
+    const page = document.createElement('div');
+    page.id = 'page-database';
+    page.className = 'page-section';
+    page.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:12px;flex-wrap:wrap">
+        <h2 style="font-size:22px;font-weight:800;margin:0">🗄️ Database</h2>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="database-import-file" accept=".xlsx,.xls" style="display:none">
+          <button class="btn btn-secondary" onclick="triggerDatabaseImport()">📥 Import Excel</button>
+          <button class="btn btn-ghost" onclick="downloadDatabaseBackup()">💾 Download DB</button>
+          <button class="btn btn-danger" onclick="clearEmployeeDatabase()">🗑 ล้างรายชื่อพนักงาน</button>
+        </div>
+      </div>
+      <div class="stats-grid" style="margin-bottom:20px">
+        <div class="stat-card card"><div class="stat-icon">🧾</div><div class="stat-value" id="db-roster-count">0</div><div class="stat-label">พนักงานในฐานข้อมูล</div></div>
+        <div class="stat-card card"><div class="stat-icon">👥</div><div class="stat-value" id="db-participant-count">0</div><div class="stat-label">ผู้เข้าร่วมทั้งหมด</div></div>
+        <div class="stat-card card"><div class="stat-icon">✅</div><div class="stat-value" id="db-matched-count">0</div><div class="stat-label">จับคู่ employee code ได้</div></div>
+        <div class="stat-card card"><div class="stat-icon">💽</div><div class="stat-value" id="db-size">0 KB</div><div class="stat-label">ขนาดไฟล์ฐานข้อมูล</div></div>
+      </div>
+      <div class="grid-2" style="gap:24px">
+        <div class="card">
+          <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">สถานะฐานข้อมูล</h3>
+          <div id="db-meta" style="font-size:13px;color:var(--text-secondary);line-height:1.8">กำลังโหลด...</div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Preview รายชื่อพนักงาน</h3>
+          <div id="db-employee-preview"></div>
+        </div>
+      </div>
+    `;
+
+    const contentArea = document.querySelector('.content-area');
+    const musicPage = document.getElementById('page-music');
+    contentArea.insertBefore(page, musicPage || null);
+    document.getElementById('database-import-file')?.addEventListener('change', handleDatabaseImportFile);
+  }
+}
+
+async function loadDatabasePage() {
+  try {
+    const [statusRes, employeesRes] = await Promise.all([
+      apiCall('/api/database/status'),
+      apiCall('/api/database/employees?limit=12')
+    ]);
+    if (!statusRes.success) throw new Error(statusRes.error || 'โหลดสถานะฐานข้อมูลไม่สำเร็จ');
+    renderDatabasePage(statusRes.data, employeesRes.success ? employeesRes.data : []);
+  } catch (err) {
+    showToast(err.message || 'โหลด Database ไม่สำเร็จ', 'error');
+  }
+}
+
+function renderDatabasePage(info, employees) {
+  document.getElementById('db-roster-count').textContent = info.rosterCount || 0;
+  document.getElementById('db-participant-count').textContent = info.participantCount || 0;
+  document.getElementById('db-matched-count').textContent = info.matchedParticipants || 0;
+  document.getElementById('db-size').textContent = `${Math.max(1, Math.round((info.sizeBytes || 0) / 1024))} KB`;
+
+  const meta = document.getElementById('db-meta');
+  meta.innerHTML = `
+    <div><strong>ไฟล์:</strong> ${escapeHtml(info.path || '-')}</div>
+    <div><strong>อัปเดตไฟล์ล่าสุด:</strong> ${info.updatedAt ? new Date(info.updatedAt).toLocaleString('th-TH') : '-'}</div>
+    <div><strong>นำเข้า roster ล่าสุด:</strong> ${info.latestImportAt ? new Date(info.latestImportAt).toLocaleString('th-TH') : '-'}</div>
+    <div><strong>สถานะ:</strong> ${info.exists ? 'พร้อมใช้งาน' : 'ยังไม่พบไฟล์'}</div>
+  `;
+
+  const preview = document.getElementById('db-employee-preview');
+  if (!employees.length) {
+    preview.innerHTML = '<div class="empty-state"><div class="empty-icon">🗂️</div><div class="empty-title">ยังไม่มีรายชื่อพนักงาน</div><div class="empty-desc">Import Excel เพื่อสร้าง employee database</div></div>';
+    return;
+  }
+
+  preview.innerHTML = employees.map((employee) => `
+    <div class="session-item" style="cursor:default">
+      <div class="session-pin" style="min-width:110px;font-size:14px;letter-spacing:1px">${escapeHtml(employee.employee_code)}</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${escapeHtml(employee.employee_name || '-')}</div>
+        <div class="text-sm text-muted">${escapeHtml(employee.branch_code || '-')}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function triggerDatabaseImport() {
+  document.getElementById('database-import-file')?.click();
+}
+
+async function handleDatabaseImportFile(event) {
+  const input = event.target;
+  const file = input?.files?.[0];
+  if (!file) return;
+
+  try {
+    showLoading('กำลังอ่านไฟล์พนักงาน...');
+    const rows = await window.parseEmployeeRosterFile(file);
+    const res = await apiCall('/api/database/import', 'POST', { rows });
+    if (!res.success) throw new Error(res.error || 'Import ไม่สำเร็จ');
+    showToast(`นำเข้าพนักงาน ${res.importedCount} รายการแล้ว`, 'success');
+    loadDatabasePage();
+  } catch (err) {
+    showToast(err.message || 'Import Excel ไม่สำเร็จ', 'error');
+  } finally {
+    hideLoading();
+    if (input) input.value = '';
+  }
+}
+
+function clearEmployeeDatabase() {
+  confirmDialog('ต้องการล้างรายชื่อพนักงานทั้งหมดหรือไม่?', async () => {
+    try {
+      const res = await apiCall('/api/database/clear', 'POST');
+      if (!res.success) throw new Error(res.error || 'ล้างข้อมูลไม่สำเร็จ');
+      showToast('ล้างรายชื่อพนักงานแล้ว', 'success');
+      loadDatabasePage();
+    } catch (err) {
+      showToast(err.message || 'ล้างข้อมูลไม่สำเร็จ', 'error');
+    }
+  });
+}
+
+function downloadDatabaseBackup() {
+  window.location.href = '/api/database/download';
+}
+
+showPage = function(page) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[onclick="showPage('${page}')"]`)?.classList.add('active');
+
+  const titles = {
+    dashboard:'📊 Dashboard',
+    quizzes:'🎯 จัดการ Quiz',
+    reports:'📈 รายงาน',
+    history:'🕐 ประวัติ',
+    settings:'⚙️ ตั้งค่า',
+    database:'🗄️ Database',
+    music:'🎵 เพลง',
+    'quiz-editor':'✏️ แก้ไข Quiz'
+  };
+  document.getElementById('topbar-title').textContent = titles[page] || page;
+
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'quizzes') loadQuizList();
+  if (page === 'history') loadHistory();
+  if (page === 'settings') loadSettings();
+  if (page === 'database') loadDatabasePage();
+  if (page === 'music') loadMusicFiles();
+};
+
+window.addEventListener('load', function() {
+  initDatabasePage();
+});
 
 </script>
 </body>

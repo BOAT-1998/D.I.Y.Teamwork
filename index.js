@@ -70,6 +70,7 @@ initDB().then(() => {
   app.use('/api/settings',  require('./routes/settings'));
   app.use('/api/music',     require('./routes/music'));
   app.use('/api/dashboard', require('./routes/dashboard'));
+  app.use('/api/database',  require('./routes/database'));
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ D.I.Y. Teamwork Server running!`);

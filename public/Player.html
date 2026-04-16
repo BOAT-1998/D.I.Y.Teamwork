@@ -129,6 +129,7 @@ body{background:var(--bg-dark);min-height:100vh;max-width:480px;margin:0 auto;fo
       <div class="avatar-picker-label">🐾 เลือก Avatar ของคุณ</div>
       <div class="avatar-grid" id="avatar-grid"></div>
       <input class="pin-input-big" id="pin-input" type="text" inputmode="numeric" maxlength="6" placeholder="PIN" oninput="this.value=this.value.replace(/\D/g,'')">
+      <input class="name-input-big" id="employee-code-input" type="text" placeholder="รหัสพนักงาน เช่น BKK00049" maxlength="20" oninput="this.value=this.value.toUpperCase().replace(/\\s+/g,'')">
       <input class="name-input-big" id="name-input" type="text" placeholder="ชื่อของคุณ..." maxlength="50">
       <p id="join-error" style="color:#f87171;font-size:13px;margin-bottom:12px;display:none"></p>
       <button class="btn-submit-answer" onclick="doJoin()">เข้าร่วม →</button>
@@ -141,6 +142,7 @@ body{background:var(--bg-dark);min-height:100vh;max-width:480px;margin:0 auto;fo
   <div class="waiting-screen" style="width:100%">
     <div class="avatar-display" id="w-avatar">🎮</div>
     <div class="waiting-name" id="w-name"></div>
+    <div class="waiting-sub" id="w-employee-code" style="margin-bottom:8px"></div>
     <div class="waiting-sub">รหัสเข้าร่วม</div>
     <div class="waiting-pin" id="w-pin"></div>
     <div class="waiting-count" id="w-count">กำลังรอผู้เข้าร่วม...</div>
@@ -239,7 +241,7 @@ let selectedAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
 // ── STATE ──
 let ps = {
   participantId:null, sessionId:null,
-  name:'', avatar:selectedAvatar, pin:'',
+  name:'', avatar:selectedAvatar, pin:'', employeeCode:'',
   currentQId:null, lastQIdx:-1,
   hasAnswered:false, showAnswer:false, timer:null, poller:null,
 };
@@ -341,6 +343,7 @@ function initFontSettings() {
 
 function playSfx(type) {
   if (!fontPrefs.sound) return;
+  if (window.globalMusicEnabled === false) return;
   if (type === 'correct' && window.effectCorrectUrl) return playSoundEffect(window.effectCorrectUrl);
   if (type === 'wrong' && window.effectWrongUrl) return playSoundEffect(window.effectWrongUrl);
 
@@ -429,13 +432,19 @@ loadFontPrefs();
           MusicPlayer.setVol(0.3); // Slightly quieter for player
         }
       }
+      if (s.require_employee_code === 'false') {
+        const empInput = document.getElementById('employee-code-input');
+        if (empInput) empInput.style.display = 'none';
+      }
     }
   });
 
   const urlParams = new URLSearchParams(window.location.search);
   const mPin = urlParams.get('pin');
   const name = urlParams.get('name') || sessionStorage.getItem('playerName') || '';
+  const employeeCode = (urlParams.get('employeeCode') || sessionStorage.getItem('playerEmployeeCode') || '').toUpperCase();
   if (mPin)  document.getElementById('pin-input').value  = mPin;
+  if (employeeCode) document.getElementById('employee-code-input').value = employeeCode;
   if (name) document.getElementById('name-input').value = name;
   if (mPin && name) setTimeout(doJoin, 400);
 })();
@@ -460,6 +469,7 @@ function enterPin() {
 }
 function doJoin() {
   const pin  = document.getElementById('pin-input').value.trim();
+  const employeeCode = document.getElementById('employee-code-input').value.trim().toUpperCase();
   const name = document.getElementById('name-input').value.trim();
   const errEl = document.getElementById('join-error');
 
@@ -470,8 +480,10 @@ function doJoin() {
   if (!name) { showErr(errEl,'กรุณากรอกชื่อของคุณ'); return; }
   errEl.style.display = 'none';
 
+  if (window.globalRequireEmployeeCode !== false && !employeeCode) { showErr(errEl,'กรุณากรอกรหัสพนักงาน'); return; }
+
   showLoading('กำลังเข้าร่วม...');
-  gasRun('joinSession', [pin, name, selectedAvatar], res => {
+  gasRun('joinSession', [pin, name, selectedAvatar, employeeCode], res => {
     hideLoading();
     if (!res.success) { 
       showToast(res.error, 'error'); 
@@ -488,9 +500,12 @@ function doJoin() {
     ps.name          = name;
     ps.avatar        = selectedAvatar;
     ps.pin           = pin;
+    ps.employeeCode  = employeeCode;
     sessionStorage.setItem('playerName', name);
+    sessionStorage.setItem('playerEmployeeCode', employeeCode);
 
     document.getElementById('w-name').textContent   = name;
+    document.getElementById('w-employee-code').textContent = employeeCode;
     document.getElementById('w-pin').textContent    = pin;
     document.getElementById('w-avatar').textContent = selectedAvatar;
     showScreen('waiting');
