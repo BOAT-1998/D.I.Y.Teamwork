@@ -341,8 +341,6 @@ function initFontSettings() {
 
 function playSfx(type) {
   if (!fontPrefs.sound) return;
-  if (type === 'correct' && window.effectCorrectUrl) return playSoundEffect(window.effectCorrectUrl);
-  if (type === 'wrong' && window.effectWrongUrl) return playSoundEffect(window.effectWrongUrl);
 
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();

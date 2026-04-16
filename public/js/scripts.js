@@ -23,8 +23,6 @@ window.applyGlobalSettingsToDocument = function(settings = {}) {
     const vol = parseFloat(settings.music_volume);
     if (!Number.isNaN(vol)) window.globalMusicVolume = vol;
   }
-  if (settings.effect_correct_url) window.effectCorrectUrl = settings.effect_correct_url;
-  if (settings.effect_wrong_url)   window.effectWrongUrl   = settings.effect_wrong_url;
 
   const bgColor = String(settings.background_color || '').trim();
   const bgImage = String(settings.background_image_url || '').trim();
